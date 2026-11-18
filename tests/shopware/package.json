@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "name": "shopware-installer-acceptance",
+  "dependencies": {
+    "playwright-core": "1.65.0"
+  }
+}

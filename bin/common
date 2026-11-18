@@ -9,89 +9,61 @@ cd "$ROOT"
 source "$ROOT/bin/dependencies"
 load_dependencies "$ROOT/dependencies.yaml"
 export LOCAL_UID=$(id -u) LOCAL_GID=$(id -g)
-MAGELENS_THEME=luma MAGELENS_RUNNER=cypress MAGELENS_PLATFORM=magento
-unsupported_legacy_hyva() {
-    printf '%s\n' 'Legacy non-CSP Hyva (--nocsp / hyva-legacy) is no longer supported.' \
-        'Back up the existing application and database. Migrate customizations to Hyva CSP in a separate checkout using --hyva, the same platform flag, and a different Docker project, domain and ports.' \
-        'Keep the existing profile, Docker project and data unchanged; use the previous MageLens release to manage that installation. See README.md.' >&2
-    exit 1
+source "$ROOT/bin/compose-project"
+export SHOPWARE_CHECKOUT=$(pwd -P)
+
+# Match the installer's literal dotenv format without sourcing application secrets.
+local_setting() {
+    local key=$1 fallback=$2 value=${!1:-}
+    if [[ -z "$value" && -f .env ]]; then
+        value=$(sed -n "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*//p" .env | tail -n 1)
+        value=${value%$'\r'}
+        value=${value%% #*}
+        value=${value#\"}; value=${value%\"}
+        value=${value#\'}; value=${value%\'}
+    fi
+    printf '%s' "${value:-$fallback}"
 }
-if [[ -f .runtime/install-profile ]]; then
-    read -r MAGELENS_THEME MAGELENS_RUNNER MAGELENS_PLATFORM extra < .runtime/install-profile
-    # Profiles created before Mage-OS support contain just the theme and runner.
-    MAGELENS_PLATFORM=${MAGELENS_PLATFORM:-magento}
-    [[ "$MAGELENS_THEME" != hyva-legacy ]] || unsupported_legacy_hyva
-    [[ "$MAGELENS_THEME" == luma || "$MAGELENS_THEME" == hyva ]] && [[ "$MAGELENS_RUNNER" == cypress || "$MAGELENS_RUNNER" == playwright ]] && [[ "$MAGELENS_PLATFORM" == magento || "$MAGELENS_PLATFORM" == mageos ]] && [[ -z "${extra:-}" ]] \
-        || { printf 'Invalid .runtime/install-profile.\n' >&2; exit 1; }
-fi
-select_platform() {
-    case "$MAGELENS_PLATFORM" in
-        magento) MAGELENS_PLATFORM_VERSION=$MAGENTO_VERSION; MAGELENS_PLATFORM_NAME='Magento Open Source' ;;
-        mageos) MAGELENS_PLATFORM_VERSION=$MAGEOS_VERSION; MAGELENS_PLATFORM_NAME='Mage-OS' ;;
-        *) printf 'Invalid platform: %s\n' "$MAGELENS_PLATFORM" >&2; return 1 ;;
-    esac
-    export MAGELENS_PLATFORM MAGELENS_PLATFORM_VERSION MAGELENS_PLATFORM_NAME
+
+compose_settings() {
+    APPLICATION_DOMAIN=$(local_setting APPLICATION_DOMAIN shopware.test)
+    APPLICATION_PORT=$(local_setting APPLICATION_PORT 80)
+    APPLICATION_HTTPS_PORT=$(local_setting APPLICATION_HTTPS_PORT 443)
+    local port
+    for port in "$APPLICATION_PORT" "$APPLICATION_HTTPS_PORT"; do
+        [[ "$port" =~ ^[1-9][0-9]{0,4}$ ]] && (( port <= 65535 )) || fail 'Application ports must be integers between 1 and 65535.'
+    done
+    [[ "$APPLICATION_PORT" != "$APPLICATION_HTTPS_PORT" ]] || fail 'HTTP and HTTPS ports must differ.'
+    SHOPWARE_ORIGIN="https://$APPLICATION_DOMAIN"
+    [[ "$APPLICATION_HTTPS_PORT" == 443 ]] || SHOPWARE_ORIGIN+=":$APPLICATION_HTTPS_PORT"
+    export SHOPWARE_ORIGIN APPLICATION_DOMAIN APPLICATION_PORT APPLICATION_HTTPS_PORT
 }
-select_platform
-export MAGELENS_THEME MAGELENS_RUNNER
-APPLICATION_PHP_IMAGE="magelens-php-base:${PHP_VERSION}-markshust${MARKSHUST_DOCKER_MAGENTO_VERSION}"
+
+app_exec() {
+    local flags=()
+    [[ -t 0 && -t 1 ]] || flags+=(-T)
+    [[ ${1:-} != composer || -z ${COMPOSER_AUTH:-} ]] || flags+=(-e COMPOSER_AUTH)
+    dc exec ${flags[@]+"${flags[@]}"} app "$@"
+}
+
 dc() {
-    source "$ROOT/bin/compose-project"
+    compose_settings
     resolve_compose_command_project "$@" || return 1
-    # PHP is rebuilt from the upstream recipe on the pinned official security
-    # release. Other service images are inherited directly by Compose.
-    local sources=() images=()
-    [[ ! -f "$ROOT/.runtime/compose.sources.json" ]] || sources=(-f "$ROOT/.runtime/compose.sources.json")
-    [[ ! -f "$ROOT/.runtime/compose.images.yaml" ]] || images=(-f "$ROOT/.runtime/compose.images.yaml")
-    MAGELENS_PHP_IMAGE="$APPLICATION_PHP_IMAGE" docker compose --project-directory "$ROOT" -f "$ROOT/compose.yaml" ${sources[@]+"${sources[@]}"} ${images[@]+"${images[@]}"} "$@"
+    docker compose --project-directory "$ROOT" -f "$ROOT/compose.yaml" "$@"
 }
+
 say() { printf '\n==> %s\n' "$*"; }
 fail() { printf '\nError: %s\n' "$*" >&2; exit 1; }
-download_with_retry() {
-    local magelens_download_attempt magelens_download_status
-    for magelens_download_attempt in 1 2 3 4; do
-        if "$@"; then return 0; else magelens_download_status=$?; fi
-        # An interrupted command must not start another download.
-        [[ "$magelens_download_status" != 130 && "$magelens_download_status" != 143 ]] || return "$magelens_download_status"
-        (( magelens_download_attempt < 4 )) || return "$magelens_download_status"
-        printf 'Download failed (status %s); retrying in %s seconds (%s/4).\n' "$magelens_download_status" "$((magelens_download_attempt * 5))" "$((magelens_download_attempt + 1))" >&2
-        sleep "$((magelens_download_attempt * 5))"
-    done
-}
-start_dependencies() {
-    if ! dc up -d --wait --wait-timeout 180 db redis opensearch runner; then
-        dc ps -a >&2 || true
-        dc logs --tail 80 db redis opensearch runner >&2 || true
-        fail 'A required service could not start. See its logs above, then rerun the command.'
-    fi
-}
-start_php_for_setup() {
-    # An earlier install may leave a running, unhealthy container or stale source
-    # mounts. Stop web traffic and give setup a fresh FPM process and health state.
-    dc stop -t 60 app phpfpm
-    # Fresh named volumes belong to root. Initialize them before non-root PHP starts.
-    dc run --rm --no-deps --user root phpfpm chown "$LOCAL_UID:$LOCAL_GID" /sock /var/www/.composer /bootstrap
-    if ! dc up -d --no-deps --force-recreate --wait --wait-timeout 60 phpfpm; then
-        dc ps -a phpfpm >&2 || true
-        dc logs --tail 50 phpfpm >&2 || true
-        local container
-        container=$(dc ps -a -q phpfpm) || container=''
-        if [[ -n "$container" ]]; then
-            docker inspect --format '{{json .State.Health}}' "$container" >&2 || true
-        fi
-        fail 'PHP-FPM could not start. See its health-check results and container logs above.'
-    fi
-}
 preflight() {
     command -v docker >/dev/null || fail 'Install Docker with Compose v2.24.4 or newer, then rerun ./install.sh.'
     docker info >/dev/null 2>&1 || fail 'Docker is unavailable. Start Docker and ensure your user can run docker info.'
     local version
     version=$(docker compose version --short | sed 's/^v//')
     [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]] || fail 'Cannot determine Docker Compose version.'
-    (( BASH_REMATCH[1] > 2 || (BASH_REMATCH[1] == 2 && (BASH_REMATCH[2] > 24 || (BASH_REMATCH[2] == 24 && BASH_REMATCH[3] >= 4))) )) || fail 'Docker Compose v2.24.4+ is required for upstream service overrides.'
+    (( BASH_REMATCH[1] > 2 || (BASH_REMATCH[1] == 2 && (BASH_REMATCH[2] > 24 || (BASH_REMATCH[2] == 24 && BASH_REMATCH[3] >= 4))) )) || fail 'Docker Compose v2.24.4+ is required for Shopware services.'
 }
 lock_workflow() {
     mkdir -p .runtime
-    mkdir .runtime/workflow.lock 2>/dev/null || fail 'Another install/coverage run is active. If interrupted, remove .runtime/workflow.lock after checking Docker.'
+    mkdir .runtime/workflow.lock 2>/dev/null || fail 'Another installation is active. If interrupted, remove .runtime/workflow.lock after checking Docker.'
     trap 'rmdir "$ROOT/.runtime/workflow.lock"' EXIT
 }

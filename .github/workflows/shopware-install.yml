@@ -1,0 +1,44 @@
+# Copyright (c)  MageLens
+# SPDX-License-Identifier: Elastic-2.0
+# License: see LICENSE in the repository root.
+
+name: Shopware installer
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+permissions:
+  contents: read
+jobs:
+  install:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-ci'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm --prefix tests/shopware ci --ignore-scripts
+      - name: Verify copyright notices
+        run: node tests/check-copyright.cjs
+        env:
+          COPYRIGHT_BASE: ${{ github.event.pull_request.base.sha }}
+      - run: node --test tests/shopware/installer.test.cjs
+      - name: Install pinned Chrome for Testing
+        shell: bash
+        run: |
+          source bin/dependencies
+          load_dependencies dependencies.yaml
+          base=https://storage.googleapis.com/chrome-for-testing-public
+          curl -fsSL "$base/$CHROME_VERSION/linux64/chrome-linux64.zip" -o "$RUNNER_TEMP/chrome.zip"
+          echo "$CHROME_LINUX_X64_SHA256  $RUNNER_TEMP/chrome.zip" | sha256sum -c
+          unzip -q "$RUNNER_TEMP/chrome.zip" -d "$RUNNER_TEMP"
+          echo "CHROME_BIN=$RUNNER_TEMP/chrome-linux64/chrome" >> "$GITHUB_ENV"
+          echo "CHROME_VERSION=$CHROME_VERSION" >> "$GITHUB_ENV"
+      - name: Verify fresh, adopted and restored shops
+        run: bash tests/shopware/e2e.sh

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
 
@@ -11,14 +11,14 @@ configure_application_domain() {
     saved=${saved%% #*}
     saved=${saved#\"}; saved=${saved%\"}
     saved=${saved#\'}; saved=${saved%\'}
-    domain=${requested:-${APPLICATION_DOMAIN:-${saved:-magelens.test}}}
+    domain=${requested:-${APPLICATION_DOMAIN:-${saved:-shopware.test}}}
     if [[ -z "$requested" && -z "${APPLICATION_DOMAIN:-}" && -z "$saved" && -t 0 ]]; then
-        read -r -p "Test domain [magelens.test]: " domain || return 1
-        domain=${domain:-magelens.test}
+        read -r -p "Test domain [shopware.test]: " domain || return 1
+        domain=${domain:-shopware.test}
     fi
     domain=$(printf '%s' "$domain" | tr '[:upper:]' '[:lower:]')
     if [[ ${#domain} -gt 253 || ! "$domain" =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
-        printf 'Enter a domain name such as magelens.test, without a scheme, port, or path.\n' >&2
+        printf 'Enter a domain name such as shopware.test, without a scheme, port, or path.\n' >&2
         return 1
     fi
     temporary=$(mktemp "${file}.XXXXXX") || return 1

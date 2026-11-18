@@ -4,7 +4,13 @@ SPDX-License-Identifier: Elastic-2.0
 License: see LICENSE in the repository root.
 -->
 
-# Use MageLens with a coding agent
+# Work on the Shopware installer
+
+Use the Shopware commands in [README.md](README.md) for this fork. The installer owns the root Compose project and runs Shopware CLI in the application container. Keep source in `src/`, operational files in `.runtime/`, and database writes on this checkout's local `db` service. Use `node --test tests/shopware/installer.test.cjs` for focused orchestration checks. The Shopware installer workflow verifies the Storefront, authenticated Administration, source adoption and restored databases with pinned Chrome.
+
+## Inherited MageLens tooling
+
+The reference below describes the Magento tooling inherited from MageLens and its release qualification. Its platform flags, runner commands and coverage paths apply to Magento development. The Shopware fork currently delivers installation and application commands.
 
 MageLens provides a local Magento Open Source or Mage-OS environment with Cypress or Playwright and PHP, JavaScript and template coverage. Use [README.md](README.md) for installation and daily commands, [docs/coverage.md](docs/coverage.md) for scenarios and coverage configuration, and [tests/README.md](tests/README.md) for isolated validation.
 

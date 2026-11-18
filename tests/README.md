@@ -6,6 +6,10 @@ License: see LICENSE in the repository root.
 
 # Test your installation
 
+For the Shopware fork, run `node --test tests/shopware/installer.test.cjs` for shell integration checks. The **Shopware installer** Actions workflow installs an isolated fresh shop, logs in through Chrome for Testing, exercises copied source and a restored local database, and checks persistence after restarting. Dispatch this workflow directly or apply the `run-ci` label to its pull request.
+
+## MageLens qualification
+
 Run the fast integration checks with `npm run test:integration`.
 
 The full E2E matrix and release qualification use **GitHub Actions**. Focused local browser reproductions, development and debugging are allowed with isolated resources and bounded RAM/disk use. Do not run the full CI suite or E2E matrix locally unless explicitly requested. Local results do not replace final CI qualification. Local syntax, PHP unit and Node integration checks remain available. After `npm ci --ignore-scripts`, `npm run test:integration` limits concurrency to two workers to bound RAM use.

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Copyright (c)  MageLens
+# SPDX-License-Identifier: Elastic-2.0
+# License: see LICENSE in the repository root.
+
+set -eu
+exec "$(dirname "$0")/application-compose" up -d --wait app

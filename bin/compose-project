@@ -5,7 +5,7 @@
 
 
 resolve_compose_project() {
-    local requested=${1:-} saved='' recorded='' selected fallback=magelens LC_ALL=C
+    local requested=${1:-} saved='' recorded='' selected fallback=shopware LC_ALL=C
     if [[ -f "$ROOT/.env" ]]; then
         # Read a literal dotenv value without executing shell code.
         saved=$(sed -n 's/^[[:space:]]*COMPOSE_PROJECT_NAME[[:space:]]*=[[:space:]]*//p' "$ROOT/.env" | tail -n 1)
@@ -16,13 +16,6 @@ resolve_compose_project() {
     fi
     if [[ -f "$ROOT/.runtime/compose-project-name" ]]; then
         recorded=$(cat "$ROOT/.runtime/compose-project-name")
-    elif [[ -f "$ROOT/.runtime/installed" || -f "$ROOT/.runtime/install-profile" ]]; then
-        # Older installs with a user-created .env but no name used Compose's
-        # normalized directory name. Preserve those volumes when adopting them.
-        if [[ -f "$ROOT/.env" && -z "$saved" ]]; then
-            fallback=$(basename "$ROOT" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-' | sed 's/^[-_]*//')
-        fi
-        recorded=${saved:-$fallback}
     fi
     selected=${requested:-${COMPOSE_PROJECT_NAME:-${saved:-$fallback}}}
     if [[ ! "$selected" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
@@ -59,7 +52,18 @@ resolve_compose_command_project() {
     resolve_compose_project "$requested" || return 1
     # Rendering configuration does not access the project's containers.
     case "${1:-}" in config|version) return 0 ;; esac
-    verify_compose_project_checkout
+    verify_compose_project_checkout || return 1
+    case "${1:-}" in
+        up|run|create)
+            # Docker creates a named volume atomically. Re-read the winner's label
+            # before Compose can attach a database during concurrent first installs.
+            local volume="${COMPOSE_PROJECT_NAME}_dbdata" owner
+            docker volume create --label "io.shopwarelens.checkout=$SHOPWARE_CHECKOUT" \
+                --label "com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
+                --label com.docker.compose.volume=dbdata "$volume" >/dev/null || return 1
+            owner=$(docker volume inspect -f '{{index .Labels "io.shopwarelens.checkout"}}' "$volume") || return 1
+            [[ "$owner" == "$SHOPWARE_CHECKOUT" ]] || { printf 'Database volume %s belongs to another checkout.\n' "$volume" >&2; return 1; } ;;
+    esac
 }
 
 verify_compose_project_checkout() {
@@ -68,8 +72,7 @@ verify_compose_project_checkout() {
     containers=$(docker ps -a --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
         --format '{{.Label "com.docker.compose.service"}}\t{{.Label "com.docker.compose.project.working_dir"}}') || return 1
     while IFS=$'\t' read -r service directory; do
-        # Data-only services can survive an application container recreation.
-        case "$service" in app|phpfpm|runner|workspace) ;; *) continue ;; esac
+        [[ -n "$service" ]] || continue
         if [[ -d "$directory" ]]; then
             directory=$(cd "$directory" && pwd -P) || return 1
         fi
@@ -79,6 +82,12 @@ verify_compose_project_checkout() {
             return 1
         fi
     done <<< "$containers"
+    local volumes volume owner
+    volumes=$(docker volume ls --format '{{.Name}}' --filter "name=^${COMPOSE_PROJECT_NAME}_dbdata$") || return 1
+    for volume in $volumes; do
+        owner=$(docker volume inspect -f '{{index .Labels "io.shopwarelens.checkout"}}' "$volume") || return 1
+        [[ "$owner" == "$checkout" ]] || { printf 'Database volume %s belongs to another checkout. Choose a separate project name.\n' "$volume" >&2; return 1; }
+    done
 }
 
 save_compose_project() {
