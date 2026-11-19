@@ -25,7 +25,9 @@ done
 sql() { ./bin/application-compose exec -T db mariadb -ushopware -pshopware --batch --skip-column-names shopware "$@"; }
 
 cd "$work/fresh"
-APPLICATION_PORT=18080 APPLICATION_HTTPS_PORT=18443 ./install.sh --container-only --project-name "$suffix-fresh" ci-shop.test
+APPLICATION_PORT=18080 APPLICATION_HTTPS_PORT=18443 ./install.sh --container-only --project-name "$suffix-fresh" ci-shop.test \
+    | tee "$work/fresh-install.log"
+[[ $(tail -n 3 "$work/fresh-install.log") == $'Administration  https://ci-shop.test:18443/admin\nUsername  admin\nPassword  shopware' ]]
 SHOPWARE_ORIGIN=https://ci-shop.test:18443 LOCAL_BROWSER_HOST=127.0.0.1 node "$root/tests/shopware/browser.cjs"
 ./bin/application-compose exec -T app php -d error_reporting=-1 -d display_errors=stderr < "$root/tests/shopware/product.php"
 ./bin/console user:create local-fixture --email fixture@shopware.test --admin --password="test-fixture-password" --no-interaction
@@ -57,7 +59,8 @@ sql -e 'DROP TABLE incomplete_fixture'
 # This dump comes from the disposable test shop and replaces the test schema's tables.
 sql < "$work/backup.sql"
 rm .runtime/installed
-./install.sh --container-only restore-shop.test
+./install.sh --container-only restore-shop.test | tee "$work/restored-install.log"
+[[ $(tail -n 1 "$work/restored-install.log") == 'Administration  https://restore-shop.test:18444/admin' ]]
 ./bin/application-compose stop
 ./bin/start
 ./install.sh --container-only

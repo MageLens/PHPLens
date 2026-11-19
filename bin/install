@@ -4,23 +4,30 @@
 # License: see LICENSE in the repository root.
 
 source "$(dirname "$0")/common"
-usage='Usage: ./install.sh [--container-only] [--project-name NAME] [--domain-id ID] [domain]'
-requested_domain='' requested_project='' domain_id='' container_only=0
+usage='Usage: ./install.sh [--version 6.7.x.y] [--container-only] [--project-name NAME] [--domain-id ID] [domain]'
+requested_domain='' requested_project='' requested_version='' domain_id='' container_only=0
 while (( $# )); do
     case "$1" in
         --help|-h) echo "$usage"; exit 0 ;;
         --container-only) container_only=1 ;;
-        --project-name|--domain-id)
+        --project-name|--domain-id|--version)
             [[ $# -ge 2 && -n "$2" && "$2" != -* ]] || fail "$usage"
-            if [[ $1 == --project-name ]]; then requested_project=$2; else domain_id=$2; fi
+            case "$1" in
+                --project-name) requested_project=$2 ;;
+                --domain-id) domain_id=$2 ;;
+                --version) requested_version=$2 ;;
+            esac
             shift ;;
         --project-name=?*) requested_project=${1#*=} ;;
+        --version=?*) requested_version=${1#*=} ;;
         -*) fail "$usage" ;;
         *) [[ -z "$requested_domain" ]] || fail "$usage"; requested_domain=$1 ;;
     esac
     shift
 done
 [[ -z "$domain_id" || "$domain_id" =~ ^[0-9a-fA-F]{32}$ ]] || fail '--domain-id takes a 32-character hexadecimal domain ID.'
+[[ -z "$requested_version" || "$requested_version" =~ ^v?6\.7\.[0-9]+\.[0-9]+$ ]] || fail '--version takes an exact stable Shopware 6.7 release (for example, 6.7.16.1).'
+requested_version=${requested_version#v}
 [[ ! -L src && ( ! -e src || -d src ) ]] || fail 'src must be a directory inside this checkout.'
 shopt -s dotglob nullglob
 source_files=(src/*)
@@ -46,6 +53,16 @@ validate_source() {
 }
 if (( ${#source_files[@]} )); then
     version=$(validate_source "$ROOT/src")
+    [[ -z "$requested_version" || "$requested_version" == "$version" ]] ||
+        fail "src/composer.lock uses Shopware $version. Use a separate checkout to install Shopware $requested_version."
+else
+    version=$requested_version
+    if [[ -z "$version" ]]; then
+        say 'Resolving the latest stable Shopware 6.7 release'
+        version=$(docker run --rm -v "$ROOT/docker/shopware:/tools:ro" \
+            "$SHOPWARE_IMAGE" "${setup_php[@]}" /tools/latest-version.php) ||
+            fail 'Could not resolve the latest stable Shopware 6.7 release. Check access to Packagist or pass an exact --version.'
+    fi
 fi
 compose_settings
 touch .env
@@ -68,14 +85,14 @@ cli_version=$(docker run --rm --network none "$SHOPWARE_IMAGE" shopware-cli --ve
 if (( ! ${#source_files[@]} )); then
     stage=$(mktemp -d "$ROOT/.runtime/create.XXXXXX")
     trap 'rm -rf -- "$stage"; rmdir "$ROOT/.runtime/workflow.lock"' EXIT
-    say "Creating Shopware $SHOPWARE_VERSION"
+    say "Creating Shopware $version"
     docker run --rm --user "$LOCAL_UID:$LOCAL_GID" -e HOME=/tmp -e COMPOSER_HOME=/cache \
         -e DATABASE_URL=mysql://shopware:shopware@db:3306/shopware -e APP_URL="$SHOPWARE_ORIGIN" \
         ${auth[@]+"${auth[@]}"} -v "$ROOT/.runtime/composer:/cache" -v "$stage:/work" -w /work \
-        "$SHOPWARE_IMAGE" shopware-cli project create shopware "$SHOPWARE_VERSION" \
+        "$SHOPWARE_IMAGE" shopware-cli project create shopware "$version" \
         --no-interaction --docker=false --with-elasticsearch=false --git=false
-    version=$(validate_source "$stage/shopware")
-    [[ "$version" == "$SHOPWARE_VERSION" ]] || fail "Scaffold resolved unexpected Shopware version $version."
+    scaffold_version=$(validate_source "$stage/shopware")
+    [[ "$scaffold_version" == "$version" ]] || fail "Requested Shopware $version, but the scaffold locked $scaffold_version."
     [[ ! -d src ]] || rmdir src
     mv "$stage/shopware" src
 fi
@@ -114,5 +131,5 @@ printf '%s\n' "$version" > .runtime/installed.tmp
 mv .runtime/installed.tmp .runtime/installed
 printf 'Storefront  %s/\nAdministration  %s/admin\n' "$SHOPWARE_ORIGIN" "$SHOPWARE_ORIGIN"
 if [[ $state == empty ]]; then
-    echo 'Use the fresh-install administrator credentials in README.md.'
+    printf 'Username  admin\nPassword  shopware\n'
 fi

@@ -6,11 +6,19 @@ License: see LICENSE in the repository root.
 
 # Shopware local development
 
-Run `./install.sh` from this checkout to create a Shopware 6.7 Storefront and Administration. Docker with Compose 2.24.4 or newer and Bash are required. PHP, Shopware CLI, Composer and Node run in the application container.
+Run `./install.sh` from this checkout to create a Storefront and Administration using the latest stable Shopware 6.7 release. Docker with Compose 2.24.4 or newer and Bash are required. PHP, Shopware CLI, Composer and Node run in the application container.
 
 ```bash
 ./install.sh shopware.test
 ```
+
+To install an exact Shopware 6.7 release in a fresh checkout, pass `--version`.
+
+```bash
+./install.sh shopware.test --version 6.7.16.1
+```
+
+If `src/composer.lock` already exists, the installer uses its Shopware version. Any supplied `--version` must match the lockfile.
 
 Open `https://shopware.test/` or `https://shopware.test/admin`. The fresh-install administrator is `admin` with password `shopware`. Restored shops keep their own users. The installer binds HTTP and HTTPS to loopback, adds the selected hostname to the hosts file, and trusts the checkout's Caddy CA on macOS or Debian/Ubuntu. Keep the private CA files under `.runtime/caddy/` local. Under WSL these host steps apply to the Linux distribution.
 
@@ -50,4 +58,4 @@ COMPOSE_PROJECT_NAME=client-shop ./bin/application-compose exec -T db \
 
 For a restored Storefront the installer adds a local URL while preserving its existing domains. If it lists multiple candidates, repeat the command with `--domain-id ID` to select the source language, currency and sales channel. The database must match the project's locked core migrations. For an interrupted database initialization, restore a complete backup or start a separate checkout with a new project and empty volume. After an interrupted download, reuse the same checkout and command. If a hard interruption left `.runtime/workflow.lock`, check for a running installer and setup container before removing that empty lock directory.
 
-Fresh-project and container versions are pinned in `dependencies.yaml`. The initial milestone covers installation and daily application commands. Shopware-specific browser runners and coverage collection are planned separately.
+Container and tooling versions are pinned in `dependencies.yaml`. The initial milestone covers installation and daily application commands. Shopware-specific browser runners and coverage collection are planned separately.

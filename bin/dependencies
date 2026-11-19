@@ -21,7 +21,6 @@ load_dependencies() {
             return 1
         fi
         case "$key" in
-            SHOPWARE_VERSION) [[ "$value" =~ ^6\.7\.[0-9]+\.[0-9]+$ ]] || return 1 ;;
             SHOPWARE_CLI_VERSION) [[ "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1 ;;
             SHOPWARE_IMAGE|DATABASE_IMAGE) [[ "$value" =~ @sha256:[a-f0-9]{64}$ ]] || return 1 ;;
             CHROME_VERSION) [[ "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1 ;;
@@ -32,7 +31,7 @@ load_dependencies() {
         seen+="$key "
         export "$key=$value"
     done < "$file"
-    for required in SHOPWARE_VERSION SHOPWARE_CLI_VERSION SHOPWARE_IMAGE DATABASE_IMAGE CHROME_VERSION CHROME_LINUX_X64_SHA256; do
+    for required in SHOPWARE_CLI_VERSION SHOPWARE_IMAGE DATABASE_IMAGE CHROME_VERSION CHROME_LINUX_X64_SHA256; do
         [[ "$seen" == *" $required "* ]] || { printf '%s: missing dependency %s.\n' "$file" "$required" >&2; return 1; }
     done
 }

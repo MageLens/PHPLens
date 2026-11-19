@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
 
-SHOPWARE_VERSION: "6.7.16.1"
 SHOPWARE_CLI_VERSION: "0.20.0"
 # The development image includes PHP, Composer, Caddy, Node and Shopware CLI.
 SHOPWARE_IMAGE: "ghcr.io/shopware/docker-dev:php8.4-node24-caddy@sha256:e0e3d7cd0018b30042aedbe9c621b44bd61bd0203b4cde6e9165f8522bec2afa"

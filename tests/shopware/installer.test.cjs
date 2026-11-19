@@ -31,7 +31,13 @@ case "$1" in
     run)
         case "\${*: -1}" in
             --version) echo 'shopware-cli version 0.20.0' ;;
+            /tools/latest-version.php)
+                [[ -z \${LATEST_VERSION_UNAVAILABLE:-} ]] || exit 74
+                echo 6.7.20.1 ;;
+            /source) echo "\${SCAFFOLD_VERSION:-6.7.16.1}" ;;
             --git=false)
+                printf '%s\\n' "$@" > scaffold-args
+                [[ -z \${SCAFFOLD_VERSION:-} ]] || exit 0
                 echo 'Interrupted scaffold' >&2
                 exit 130 ;;
             *) exit 72 ;;
@@ -79,6 +85,67 @@ test('failed scaffolding leaves src available for a retry under the saved projec
     assert.match(f.run(['--project-name', 'other']).stderr, /refusing to switch/);
 });
 
+test('a fresh install scaffolds the latest resolved stable version by default', t => {
+    const f = workspace(t);
+    const result = f.run(['shopware.test']);
+    assert.equal(result.status, 130, result.stderr);
+    assert.match(fs.readFileSync(path.join(f.root, 'scaffold-args'), 'utf8'),
+        /project\ncreate\nshopware\n6\.7\.20\.1\n/);
+});
+
+test('an explicit version bypasses the latest lookup and reaches the scaffold exactly', t => {
+    const f = workspace(t);
+    for (const args of [['shopware.test', '--version', '6.7.15.1'], ['--version=v6.7.15.1', 'shopware.test']]) {
+        const result = f.run(args, {LATEST_VERSION_UNAVAILABLE: 'yes'});
+        assert.equal(result.status, 130, result.stderr);
+        assert.match(fs.readFileSync(path.join(f.root, 'scaffold-args'), 'utf8'),
+            /project\ncreate\nshopware\n6\.7\.15\.1\n/);
+    }
+});
+
+test('invalid version arguments and unavailable metadata fail before saving settings', t => {
+    const f = workspace(t);
+    for (const args of [['--version'], ['--version='], ['--version', '6.6.10.32'],
+        ['--version', '6.7.16.1-rc1']]) {
+        const result = f.run(args);
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /--version/);
+        assert.ok(!f.exists('.runtime') && !f.exists('.env'));
+    }
+    const result = f.run(['shopware.test'], {LATEST_VERSION_UNAVAILABLE: 'yes'});
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Could not resolve the latest stable Shopware 6.7 release/);
+    assert.ok(!f.exists('scaffold-args') && !f.exists('src') && !f.exists('.env'));
+});
+
+test('a scaffold that locks a different version is discarded', t => {
+    const f = workspace(t);
+    const result = f.run(['--version', '6.7.15.1'], {SCAFFOLD_VERSION: '6.7.16.1'});
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Requested Shopware 6.7.15.1, but the scaffold locked 6.7.16.1/);
+    assert.ok(!f.exists('src') && !f.exists('.runtime/workflow.lock'));
+});
+
+test('an existing project uses its locked version and rejects a conflicting selection', t => {
+    const f = workspace(t);
+    for (const file of ['composer.json', 'composer.lock', 'bin/console', 'public/index.php']) {
+        const target = path.join(f.root, 'src', file);
+        fs.mkdirSync(path.dirname(target), {recursive: true});
+        fs.writeFileSync(target, '');
+    }
+    const conflict = f.run(['--version', '6.7.15.1', 'shopware.test']);
+    assert.equal(conflict.status, 1);
+    assert.match(conflict.stderr, /src\/composer.lock uses Shopware 6.7.16.1/);
+    assert.ok(!f.exists('.env') && !f.exists('scaffold-args'));
+
+    for (const args of [['shopware.test'], ['--version', '6.7.16.1', 'shopware.test']]) {
+        const result = f.run(args, {LATEST_VERSION_UNAVAILABLE: 'yes'});
+        assert.equal(result.status, 71, result.stderr);
+        assert.match(result.stdout, /Preparing local Shopware 6.7.16.1/);
+        assert.ok(!f.exists('scaffold-args'));
+    }
+});
+
 test('an active workflow lock protects source and readiness state', t => {
     const f = workspace(t);
     fs.mkdirSync(path.join(f.root, '.runtime/workflow.lock'), {recursive: true});
@@ -94,6 +161,7 @@ test('checkout bootstrap forwards arguments only inside its selected checkout', 
     const inside = spawnSync('bash', args, {cwd: f.root, encoding: 'utf8'});
     assert.equal(inside.status, 0, inside.stderr);
     assert.match(inside.stdout, /--container-only/);
+    assert.match(inside.stdout, /--version/);
     const outside = spawnSync('bash', args, {cwd: path.dirname(f.root), encoding: 'utf8'});
     assert.notEqual(outside.status, 0);
     assert.match(outside.stderr, /in the Shopware fork checkout/);
