@@ -5,6 +5,9 @@
  * License: see LICENSE in the repository root.
  */
 
+// TO DO [SW-AUDIT-011]: Retain Magento store URL resolution for inherited report publication.
+// Replace it with platform URL resolution and an explicit report-serving contract.
+
 declare(strict_types=1);
 
 function coverageReportUrl(string $base): string

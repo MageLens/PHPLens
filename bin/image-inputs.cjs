@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-003]: Retain the legacy image manifest contract for build/release consumers.
+// Separate MageLens repository/registry ownership and image kinds before fork releases.
 
 const fs = require('node:fs');
 const path = require('node:path');

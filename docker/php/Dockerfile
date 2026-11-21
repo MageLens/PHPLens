@@ -1,6 +1,9 @@
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-003]: Retain the PCOV/report image for inherited coverage and release checks.
+# Integrate its extensions and FPM configuration into a qualified Shopware image.
 
 ARG PHP_IMAGE
 FROM ${PHP_IMAGE} AS portable

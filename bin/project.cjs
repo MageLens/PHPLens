@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-006]: Retain discovery/runtime exports used by both runners and tests. Replace
+// Magento module/theme paths, XML registration and FPM/nginx mounts with platform discovery.
 
 const fs = require('node:fs');
 const path = require('node:path');

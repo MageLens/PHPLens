@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-012]: Retain HTML/PHTML evidence validation for inherited reports. Define Twig
+// evidence units and limitations before accepting another template-engine schema.
 
 const fs = require('node:fs');
 const assert = require('node:assert/strict');

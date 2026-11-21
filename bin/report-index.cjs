@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-012]: Retain existing template report labels for the current HTML/PHTML schema.
+// Use engine-specific measurement descriptions before presenting Twig evidence.
 
 const fs = require('node:fs');
 

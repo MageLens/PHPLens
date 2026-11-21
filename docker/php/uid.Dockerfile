@@ -1,6 +1,9 @@
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-003]: Retain the portable PHP ownership layer for prebuilt-image consumers.
+# Replace it when the Shopware coverage image and local-user contract are qualified.
 
 ARG PHP_IMAGE
 FROM ${PHP_IMAGE}

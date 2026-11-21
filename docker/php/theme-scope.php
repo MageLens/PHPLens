@@ -1,9 +1,12 @@
 <?php
 /*
- * SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+ * Copyright (c)  MageLens
  * SPDX-License-Identifier: Elastic-2.0
  * License: see LICENSE in the repository root.
  */
+
+// TO DO [SW-AUDIT-006]: Retain active-theme filtering so inactive files stay outside legacy scope.
+// Replace Magento store/theme registration with platform-specific template/theme discovery.
 
 declare(strict_types=1);
 require '/var/www/html/app/bootstrap.php';

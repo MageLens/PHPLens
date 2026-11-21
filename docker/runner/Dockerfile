@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
 
+# TO DO [SW-AUDIT-003]: Retain both browser image targets and their regressions. Supply runner
+# image/version pins and Shopware Compose integration before enabling coverage.
+
 ARG RUNNER_IMAGE
 ARG PLAYWRIGHT_RUNNER_IMAGE
 FROM node:24.22.3-bookworm AS cypress-source
@@ -10,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxss1 libxtst6 xvfb xauth zip unzip \
     && rm -rf /var/lib/apt/lists/*
 ENV CI=true CYPRESS_INSTALL_BINARY=0 CHILD_CONCURRENCY=2 \
-    NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/build/tmp
+    NODE_OPTIONS="--max-old-space-size=4096" TMPDIR=/build/tmp
 COPY package.json /input/package.json
 COPY docker/runner/cypress-source/ /input/
 RUN taskset -c "$(python3 -c 'import os; print(",".join(map(str, sorted(os.sched_getaffinity(0))[:2])))')" bash /input/build.sh

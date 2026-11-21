@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-005]: Retain the Magento two-factor-auth module required by inherited setup.
+# Replace authentication fixtures per platform rather than installing this in Shopware.
 
 set -euo pipefail
 # Match Mark Shust's bin/init development dependency, keeping it in vendor/.

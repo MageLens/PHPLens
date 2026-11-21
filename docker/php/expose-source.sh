@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-004]: Retain source adoption and interrupted-copy recovery for legacy consumers.
+# Replace Magento bootstrap checks and protected paths with platform-specific policies.
 
 set -euo pipefail
 # nginx keeps its upstream UID; PHP owns the shared private socket directory.

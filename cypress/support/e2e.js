@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-007]: Retain the template collector registration for inherited Cypress flows.
+// Use a qualified template-engine adapter before enabling Shopware template coverage.
 
 require('./javascript-coverage');
 const {registerTemplateCoverage} = require('@vitaliiboiko/magento-template-coverage/cypress');

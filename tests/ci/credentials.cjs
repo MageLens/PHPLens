@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-013]: Retain Magento Marketplace credential validation for inherited cases.
+// Select credentials per platform; Shopware setup must not require repo.magento.com auth.
 
 const fs = require('fs');
 if (!process.env.COMPOSER_AUTH) throw new Error('INCOMPLETE: missing COMPOSER_AUTH');

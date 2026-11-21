@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-007]: Retain the Magento template package pin while prepare/report and runner
+// support import it. Replace it through a template-engine adapter, including lockfiles.
 
 const fs = require('node:fs');
 const os = require('node:os');

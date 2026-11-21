@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-007]: Retain Magento RequireJS/initializer readiness checks for legacy warm-up.
+// Replace readiness and template observation with platform/engine hooks for Shopware.
 
 // Keep instrumented templates functional without recording coverage or a PHP token.
 const {observeExecution} = require('@vitaliiboiko/magento-template-coverage/browser');

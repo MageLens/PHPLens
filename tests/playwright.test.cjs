@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-014]: Retain legacy runner regressions. Replace the missing Blog readiness
+// helper through platform fixtures before this file can execute in the Shopware fork.
 
 const {test} = require('node:test');
 const assert = require('node:assert/strict');

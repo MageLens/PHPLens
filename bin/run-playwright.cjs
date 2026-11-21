@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-007]: Retain template runtime installation during inherited warm-up. Replace it
+// with an engine adapter before running the same lifecycle against Shopware.
 
 const fs = require('node:fs');
 const {spawnSync} = require('node:child_process');

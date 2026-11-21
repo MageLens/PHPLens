@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-007]: Retain template coverage fixtures used by inherited Playwright tests.
+// Replace the template backend through an engine adapter while preserving JS collection.
 
 const fs = require('node:fs');
 const {randomUUID} = require('node:crypto');

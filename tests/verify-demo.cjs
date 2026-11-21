@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-014]: Retain Blog acceptance assertions as a legacy behavior reference. Supply
+// a platform fixture and equivalent scenarios before replacing missing Magento demo inputs.
 
 // Optional regression checks for the bundled demonstration suite.
 const fs = require('node:fs');

@@ -3,7 +3,7 @@
   "version": "1.9.4",
   "private": true,
   "license": "Elastic-2.0",
-  "description": "Quickly bootstrap Magento with PHP, JavaScript, and HTML template code coverage",
+  "description": "Bootstrap local Shopware development; retain inherited browser and coverage tooling for migration",
   "scripts": {
     "check:copyright": "node tests/check-copyright.cjs",
     "coverage": "./bin/run-coverage",

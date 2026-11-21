@@ -1,9 +1,12 @@
 <?php
 /*
- * SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+ * Copyright (c)  MageLens
  * SPDX-License-Identifier: Elastic-2.0
  * License: see LICENSE in the repository root.
  */
+
+// TO DO [SW-AUDIT-005]: Retain scoped Magento coverage configuration and its tests. Replace
+// bootstrap, website/store queries and env.php writes with platform-specific configuration.
 
 declare(strict_types=1);
 

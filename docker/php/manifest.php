@@ -1,9 +1,12 @@
 <?php
 /*
- * SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+ * Copyright (c)  MageLens
  * SPDX-License-Identifier: Elastic-2.0
  * License: see LICENSE in the repository root.
  */
+
+// TO DO [SW-AUDIT-009]: Retain deployment identity checks that reject stale PHP evidence. Replace
+// Magento config/generated/patch inputs with platform-specific identity inputs.
 
 declare(strict_types=1);
 require_once '/opt/pcov-tools/pcov_manifest_tools.php';

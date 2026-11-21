@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-001]: Retain this runner entry point for the later port. Replace the generated
+# bin/docker-compose dependency only when a Shopware runner service exists.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

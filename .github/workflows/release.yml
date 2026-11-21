@@ -1,6 +1,9 @@
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-013]: Retain existing qualification/publication safeguards. Define fork release
+# ownership and Shopware qualification before using this MageLens-only publisher.
 
 name: Publish release
 

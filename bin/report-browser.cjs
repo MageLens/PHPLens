@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-007]: Retain the Magento template report CLI while inherited reports consume it.
+// Replace the template backend with an engine adapter; preserve Istanbul JS reporting.
 
 const fs = require('node:fs');
 const path = require('node:path');

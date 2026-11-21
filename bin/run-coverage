@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
 
+# TO DO [SW-AUDIT-001]: Retain the legacy coverage command and flags. Port its phpfpm/runner services,
+# collection lifecycle and installed-profile check before using it with Shopware.
+
 source "$(dirname "$0")/common"
 start_services=0
 refresh_cache=0

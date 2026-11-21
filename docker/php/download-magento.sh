@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-004]: Retain Magento/Mage-OS source staging for inherited download flows.
+# Use Shopware CLI creation and locked-source validation in a future platform adapter.
 
 set -euo pipefail
 platform=${MAGELENS_PLATFORM:-magento}
