@@ -6,6 +6,7 @@
 /.env
 /node_modules/
 /coverage/
+/shopware-reports/
 .DS_Store
 .idea/
 /.cleanup-tools/
@@ -34,6 +35,12 @@
 !/bin/sync-runner-dependencies
 !/bin/prepare.cjs
 !/bin/project.cjs
+!/bin/test-suites.cjs
+!/bin/platforms/
+!/bin/platforms/**
+!/bin/coverage/
+!/bin/coverage/**
+!/bin/install-coverage
 !/bin/public-report.cjs
 !/bin/javascript-scope.cjs
 !/bin/report-browser.cjs

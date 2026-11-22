@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
 
-// TO DO [SW-AUDIT-007]: Retain the template collector registration for inherited Cypress flows.
-// Use a qualified template-engine adapter before enabling Shopware template coverage.
+// Template collection is retained for inherited Magento runs and disabled for Shopware.
 
 require('./javascript-coverage');
-const {registerTemplateCoverage} = require('@vitaliiboiko/magento-template-coverage/cypress');
-registerTemplateCoverage({outputDir: 'coverage/raw/templates'});
+if (Cypress.expose('platform') !== 'shopware') {
+    const {registerTemplateCoverage} = require('@vitaliiboiko/magento-template-coverage/cypress');
+    registerTemplateCoverage({outputDir: 'coverage/raw/templates'});
+}
 
 const {disablePageTransitions} = require('../../bin/browser-navigation.cjs');
 Cypress.on('window:before:load', disablePageTransitions);

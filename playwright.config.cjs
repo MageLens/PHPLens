@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
 
@@ -6,7 +6,7 @@ const {defineConfig} = require('@playwright/test');
 const {specPatterns} = require('./bin/project.cjs');
 module.exports = defineConfig({
     testDir: '.',
-    testMatch: specPatterns('playwright'),
+    testMatch: require('node:fs').existsSync('coverage/run.json') ? require('./coverage/run.json').specs || specPatterns('playwright') : specPatterns('playwright'),
     testIgnore: ['**/node_modules/**', '**/.runtime/**'],
     workers: 1,
     retries: 0,
@@ -18,7 +18,7 @@ module.exports = defineConfig({
     use: {
         browserName: 'chromium',
         channel: 'chrome',
-        baseURL: process.env.PLAYWRIGHT_BASE_URL || process.env.CYPRESS_BASE_URL || 'https://magelens.test',
+        baseURL: process.env.PLAYWRIGHT_BASE_URL || process.env.CYPRESS_BASE_URL || 'https://shopware.test',
         ignoreHTTPSErrors: true,
         viewport: {width: 1100, height: 900},
         screenshot: 'only-on-failure',

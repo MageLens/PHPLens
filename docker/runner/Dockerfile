@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
 
-# TO DO [SW-AUDIT-003]: Retain both browser image targets and their regressions. Supply runner
-# image/version pins and Shopware Compose integration before enabling coverage.
-
 ARG RUNNER_IMAGE
 ARG PLAYWRIGHT_RUNNER_IMAGE
 FROM node:24.22.3-bookworm AS cypress-source
@@ -27,14 +24,12 @@ RUN bash /opt/magelens/install-desktop.sh curl unzip ca-certificates
 ENV DISPLAY=:99 MAGELENS_RUNNER=playwright
 WORKDIR /workspace
 COPY package.json package-lock.json ./
-COPY .runtime/template-package/ .runtime/
 RUN npm ci --ignore-scripts --no-audit --no-fund \
     && npx --no-install playwright install-deps chromium \
     && bash /opt/magelens/install-chrome.sh \
     && rm -rf /var/lib/apt/lists/*
 RUN mkdir /opt/magelens-dependencies \
     && cp package.json package-lock.json /opt/magelens-dependencies/ \
-    && cp -a .runtime /opt/magelens-dependencies/ \
     && tar czf /opt/magelens-dependencies/node_modules.tar.gz node_modules
 ENV PATH=/workspace/node_modules/.bin:$PATH
 HEALTHCHECK --interval=3s --timeout=3s --start-period=10s --retries=20 \
@@ -54,11 +49,9 @@ ENV CYPRESS_CACHE_FOLDER=/opt/cypress DISPLAY=:99 MAGELENS_RUNNER=cypress
 COPY --from=cypress-source /output/ /opt/cypress/
 WORKDIR /workspace
 COPY package.json package-lock.json ./
-COPY .runtime/template-package/ .runtime/
 RUN CYPRESS_INSTALL_BINARY=0 npm ci --no-audit --no-fund && chmod -R a+rwX /opt/cypress
 RUN mkdir /opt/magelens-dependencies \
     && cp package.json package-lock.json /opt/magelens-dependencies/ \
-    && cp -a .runtime /opt/magelens-dependencies/ \
     && tar czf /opt/magelens-dependencies/node_modules.tar.gz node_modules
 ENV PATH=/workspace/node_modules/.bin:$PATH
 HEALTHCHECK --interval=3s --timeout=3s --start-period=10s --retries=20 \

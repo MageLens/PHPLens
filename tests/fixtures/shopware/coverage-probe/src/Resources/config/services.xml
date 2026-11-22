@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+Copyright (c)  MageLens
+SPDX-License-Identifier: Elastic-2.0
+License: see LICENSE in the repository root.
+-->
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services https://symfony.com/schema/dic/services/services-1.0.xsd">
+    <services>
+        <service id="CoverageProbe\Controller\ProbeController" public="true" autowire="true" autoconfigure="true">
+            <call method="setContainer"><argument type="service" id="service_container"/></call>
+        </service>
+    </services>
+</container>

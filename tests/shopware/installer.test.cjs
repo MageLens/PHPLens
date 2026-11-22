@@ -73,7 +73,7 @@ test('foreign containers and orphaned volumes are rejected before installation',
 test('failed scaffolding leaves src available for a retry under the saved project', t => {
     const f = workspace(t);
     for (const args of [['--project-name', 'client', 'client.test'], []]) {
-        const result = f.run(['--container-only', ...args], {APPLICATION_HTTPS_PORT: '18443'});
+        const result = f.run(['--container-only', ...args], {APPLICATION_HTTPS_PORT: '18443', RUNNER_VIEW_PORT: '16080'});
         assert.equal(result.status, 130, result.stderr);
         assert.ok(!f.exists('src') && !f.exists('.runtime/installed') && !f.exists('.runtime/workflow.lock'));
         assert.ok(!fs.readdirSync(path.join(f.root, '.runtime')).some(name => name.startsWith('create.')));
@@ -81,8 +81,22 @@ test('failed scaffolding leaves src available for a retry under the saved projec
     const settings = fs.readFileSync(path.join(f.root, '.env'), 'utf8');
     assert.match(settings, /^APPLICATION_DOMAIN=client.test$/m);
     assert.match(settings, /^APPLICATION_HTTPS_PORT=18443$/m);
+    assert.match(settings, /^RUNNER_VIEW_PORT=16080$/m);
     assert.match(settings, /^COMPOSE_PROJECT_NAME=client$/m);
     assert.match(f.run(['--project-name', 'other']).stderr, /refusing to switch/);
+});
+
+test('runner selection is validated, saved and reused without replacing it with the default', t => {
+    const f = workspace(t);
+    assert.equal(f.run(['--runner=playwright', 'shopware.test']).status, 130);
+    const selection = () => fs.readFileSync(path.join(f.root, '.runtime/runner'), 'utf8').trim();
+    assert.equal(selection(), 'playwright');
+    assert.equal(f.run([], {MAGELENS_RUNNER: ''}).status, 130);
+    assert.equal(selection(), 'playwright');
+    assert.equal(f.run(['--runner=cypress'], {MAGELENS_RUNNER: ''}).status, 130);
+    assert.equal(selection(), 'cypress');
+    assert.equal(f.run(['--runner=selenium'], {MAGELENS_RUNNER: ''}).status, 1);
+    assert.equal(selection(), 'cypress');
 });
 
 test('a fresh install scaffolds the latest resolved stable version by default', t => {

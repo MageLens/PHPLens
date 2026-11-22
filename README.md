@@ -25,7 +25,7 @@ Open `https://shopware.test/` or `https://shopware.test/admin`. The fresh-instal
 For automation, use `--container-only` to perform all HTTPS checks on the Compose network. To run beside Magento or another shop, select a different project, domain and free ports. The installer saves those settings for daily commands.
 
 ```bash
-APPLICATION_PORT=18080 APPLICATION_HTTPS_PORT=18443 \
+APPLICATION_PORT=18080 APPLICATION_HTTPS_PORT=18443 RUNNER_VIEW_PORT=16080 \
   ./install.sh --container-only --project-name client-shop client-shop.test
 ```
 
@@ -58,4 +58,39 @@ COMPOSE_PROJECT_NAME=client-shop ./bin/application-compose exec -T db \
 
 For a restored Storefront the installer adds a local URL while preserving its existing domains. If it lists multiple candidates, repeat the command with `--domain-id ID` to select the source language, currency and sales channel. The database must match the project's locked core migrations. For an interrupted database initialization, restore a complete backup or start a separate checkout with a new project and empty volume. After an interrupted download, reuse the same checkout and command. If a hard interruption left `.runtime/workflow.lock`, check for a running installer and setup container before removing that empty lock directory.
 
-Container and tooling versions are pinned in `dependencies.yaml`. The initial milestone covers installation and daily application commands. Shopware-specific browser runners and coverage collection are planned separately.
+Container and tooling versions are pinned in `dependencies.yaml`. The Shopware coverage path is under qualification; release readiness requires the Shopware coverage workflow to pass for both runners.
+
+## Run browser tests with coverage
+
+Installation provisions Cypress by default. Select Playwright with `./install.sh --runner=playwright`; reinstalling preserves the saved runner. After upgrading tooling, rerun installation before collecting coverage.
+
+```bash
+./bin/run-coverage
+./bin/run-coverage --start
+```
+
+The command runs all configured browser scenarios, collecting HTTP PHP coverage and original-source JavaScript/TypeScript coverage. It builds a disposable application copy and restores the normal application afterward. Twig, inline scripts, Vue/JSX component sources, CLI commands and background workers are not measured. Unsupported component sources are listed in `coverage/javascript-scope.json`.
+
+Application tests default to `src/tests/e2e/cypress/**/*.cy.{js,ts}` and `src/tests/e2e/playwright/**/*.spec.{js,ts}`. Repository `tests/` contains PHPLens tooling checks. Configure alternative project or extension suites in `coverage.config.json`; each runner entry replaces its default. Paths are relative to this checkout and must remain inside it.
+
+```json
+{
+  "tests": {
+    "cypress": ["src/tests/e2e/cypress/**/*.cy.{js,ts}"],
+    "playwright": [
+      "src/tests/e2e/playwright/**/*.spec.{js,ts}",
+      "src/custom/plugins/*/tests/e2e/playwright/**/*.spec.{js,ts}"
+    ]
+  }
+}
+```
+
+Playwright scenarios under the default directory import `test` and `expect` from `../../../../playwright/support.cjs`. Existing custom test fixtures can be wrapped with the exported `withCoverage(baseTest)`. Cypress scenarios use the configured root support file automatically. Retain application-specific helpers when integrating an existing suite.
+
+Coverage includes project PHP and active local extensions; third-party source requires `vendorRoots`. JavaScript instrumentation covers standalone source files under extension `Resources/app/storefront/src` and `Resources/app/administration/src`, plus project `assets/`. Eligible files that never execute remain uncovered. Configure exclusions and required JavaScript execution through the existing `javascript` settings in `coverage.config.json`.
+
+Open `https://<domain>:6080/vnc.html` to watch the browser; set `RUNNER_VIEW_PORT` to choose a different free port. Reports are available at `https://<domain>/coverage/index.html` after successful collection, source verification and cleanup, and locally in `coverage/`. Nondefault HTTPS ports are included in the printed URL. Failed, skipped or interrupted suites do not publish a success report.
+
+`--refresh-cache` clears Shopware caches in the disposable application. `--refresh-assets` forces dependency installation during its asset builds. `--restart-php` restarts the disposable application before collection. Use `./bin/runner COMMAND` to work in the selected browser container.
+
+Optional fixture hooks live in `src/tests/coverage/hooks.php` or an active extension’s `tests/coverage/hooks.php`. Hooks receive `before`, `prepare` or `cleanup`; `prepare` writes one JSON value to stdout, optionally containing `warmupPaths`. Other diagnostics belong on stderr. Hooks and browser scenarios operate on this checkout’s local database. Cleanup runs after failures and interruptions; do not remove the workflow lock while a run remains active.

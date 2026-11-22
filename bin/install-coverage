@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Copyright (c)  MageLens
+# SPDX-License-Identifier: Elastic-2.0
+# License: see LICENSE in the repository root.
+
+# Called under the installer's workflow lock, after application readiness.
+source "$(dirname "$0")/common"
+expected_profile="1 $MAGELENS_RUNNER $(coverage_fingerprint)"
+say "Building PHP coverage and the $MAGELENS_RUNNER browser runner"
+dc --profile coverage build runner
+coverage_dc build app
+[[ -f .runtime/php-scope.ini ]] || cp docker/shopware/coverage.ini .runtime/php-scope.ini
+dc --profile coverage up -d --wait --wait-timeout 180 runner
+# A named dependency volume survives rebuilds. Synchronize it from this image.
+if [[ "$(cat .runtime/coverage-profile 2>/dev/null || true)" != "$expected_profile" ]]; then
+    dc exec -T --user root runner rm -f /workspace/node_modules/.magelens-dependencies
+fi
+dc exec -T --user root runner node /opt/magelens/sync-node-modules.cjs
+dc exec -T --user root runner chown -R "$LOCAL_UID:$LOCAL_GID" /workspace/node_modules
+printf '%s\n' "$expected_profile" > .runtime/coverage-profile.tmp
+mv .runtime/coverage-profile.tmp .runtime/coverage-profile

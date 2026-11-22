@@ -21,17 +21,17 @@ load_dependencies() {
             return 1
         fi
         case "$key" in
-            SHOPWARE_CLI_VERSION) [[ "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1 ;;
-            SHOPWARE_IMAGE|DATABASE_IMAGE) [[ "$value" =~ @sha256:[a-f0-9]{64}$ ]] || return 1 ;;
+            SHOPWARE_CLI_VERSION|PCOV_VERSION) [[ "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1 ;;
+            SHOPWARE_IMAGE|DATABASE_IMAGE|RUNNER_IMAGE|PLAYWRIGHT_RUNNER_IMAGE) [[ "$value" =~ @sha256:[a-f0-9]{64}$ ]] || return 1 ;;
             CHROME_VERSION) [[ "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1 ;;
-            CHROME_LINUX_X64_SHA256) [[ "$value" =~ ^[a-f0-9]{64}$ ]] || return 1 ;;
+            CHROME_LINUX_X64_SHA256|CHROME_LINUX_ARM64_SHA256|PCOV_SOURCE_SHA256) [[ "$value" =~ ^[a-f0-9]{64}$ ]] || return 1 ;;
             *) printf '%s: unknown dependency key %s.\n' "$file" "$key" >&2; return 1 ;;
         esac
         [[ "$seen" != *" $key "* ]] || { printf '%s: duplicate key %s.\n' "$file" "$key" >&2; return 1; }
         seen+="$key "
         export "$key=$value"
     done < "$file"
-    for required in SHOPWARE_CLI_VERSION SHOPWARE_IMAGE DATABASE_IMAGE CHROME_VERSION CHROME_LINUX_X64_SHA256; do
+    for required in SHOPWARE_CLI_VERSION SHOPWARE_IMAGE DATABASE_IMAGE CHROME_VERSION CHROME_LINUX_X64_SHA256 PCOV_VERSION PCOV_SOURCE_SHA256 RUNNER_IMAGE PLAYWRIGHT_RUNNER_IMAGE CHROME_LINUX_ARM64_SHA256; do
         [[ "$seen" == *" $required "* ]] || { printf '%s: missing dependency %s.\n' "$file" "$required" >&2; return 1; }
     done
 }

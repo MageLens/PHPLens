@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
 
-// TO DO [SW-AUDIT-007]: Retain template runtime installation during inherited warm-up. Replace it
-// with an engine adapter before running the same lifecycle against Shopware.
+// Template collection is retained for inherited Magento runs and disabled for Shopware.
 
 const fs = require('node:fs');
 const {spawnSync} = require('node:child_process');
@@ -16,17 +15,22 @@ async function main() {
         const browser = await chromium.launch({channel: 'chrome', headless: false});
         try {
             const page = await browser.newPage({ignoreHTTPSErrors: true});
+            const errors = [];
+            const pages = [];
+            page.on('pageerror', error => errors.push(error.message));
             await page.context().addInitScript(disablePageTransitions);
-            await require('@vitaliiboiko/magento-template-coverage/playwright').installTemplateRuntime(page.context());
+            if (process.env.PHPLENS_PLATFORM !== 'shopware') await require('@vitaliiboiko/magento-template-coverage/playwright').installTemplateRuntime(page.context());
             const paths = warmupPaths(JSON.parse(fs.readFileSync('coverage/project-fixtures.json')));
             const baseUrl = process.env.PLAYWRIGHT_BASE_URL || process.env.CYPRESS_BASE_URL;
             for (const path of paths) {
                 const response = await page.goto(new URL(path, baseUrl).href, {timeout: 180000});
                 if (!response?.ok()) throw new Error(`Warm-up ${path} HTTP ${response?.status()}`);
                 await page.waitForLoadState('networkidle', {timeout: 180000});
+                if (errors.length) throw new Error(`Uncaught warm-up application errors: ${errors.join('; ')}`);
+                pages.push({page: page.url(), javascriptFiles: await page.evaluate(() => Object.keys(window.__coverage__ || {}))});
             }
             fs.writeFileSync('coverage/warmup-results.json', JSON.stringify({runner: 'playwright', status: 'passed',
-                browser: {name: 'chrome-for-testing', version: browser.version()}}));
+                browser: {name: 'chrome-for-testing', version: browser.version()}, pages}));
         } finally { await browser.close(); }
         return;
     }

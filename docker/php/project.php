@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 function project(): array
 {
-    return json_decode(file_get_contents('/application/project.json'), true, flags: JSON_THROW_ON_ERROR);
+    return json_decode(file_get_contents(getenv('COVERAGE_PROJECT_FILE') ?: '/application/project.json'), true, flags: JSON_THROW_ON_ERROR);
 }
 
 if (realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) {
