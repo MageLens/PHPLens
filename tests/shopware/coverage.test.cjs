@@ -31,6 +31,16 @@ test('defaults select application browser suites and never tooling tests', t => 
     assert.deepEqual(suites.resolve('playwright', {root: f.root}), ['src/tests/e2e/playwright/admin.spec.ts']);
 });
 
+test('coverage preparation reports the paths it searched when the suite is empty', t => {
+    const {root} = workspace(t);
+    const result = spawnSync(process.execPath, [path.join(repo, 'bin/coverage/prepare.cjs')], {
+        cwd: root, encoding: 'utf8', env: {...process.env, MAGELENS_RUNNER: 'cypress'}
+    });
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, 'No cypress browser tests found. Searched: src/tests/e2e/cypress/**/*.cy.{js,ts}\n'
+        + 'Add a spec at a matching path or update tests.cypress in coverage.config.json.\n');
+});
+
 test('coverage configuration rejects non-object JSON roots', t => {
     const f = workspace(t);
     for (const value of [null, [], true, 42, 'tests']) {

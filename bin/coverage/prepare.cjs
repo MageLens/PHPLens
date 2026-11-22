@@ -105,5 +105,13 @@ function prepare() {
     console.log(`Prepared ${runner} run ${run.id}: ${specs.length} specs, ${scope.included.length} JavaScript/TypeScript files. Templates are not collected.`);
 }
 
-if (require.main === module) prepare();
+if (require.main === module) {
+    try {
+        prepare();
+    } catch (error) {
+        if (!(error instanceof suites.NoBrowserTestsError)) throw error;
+        console.error(error.message);
+        process.exitCode = 1;
+    }
+}
 module.exports = {inventory, mirror, prepare, deploymentSources};

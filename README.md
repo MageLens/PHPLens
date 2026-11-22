@@ -73,6 +73,8 @@ The command runs all configured browser scenarios, collecting HTTP PHP coverage 
 
 Application tests default to `src/tests/e2e/cypress/**/*.cy.{js,ts}` and `src/tests/e2e/playwright/**/*.spec.{js,ts}`. Repository `tests/` contains PHPLens tooling checks. Configure alternative project or extension suites in `coverage.config.json`; each runner entry replaces its default. Paths are relative to this checkout and must remain inside it.
 
+Create at least one application spec before running coverage. For a storefront smoke test on a stock Shopware install, visit `/`, check that the main content is visible, and include `vendor/shopware/storefront/Controller` in `vendorRoots` to measure the PHP that handled the request.
+
 ```json
 {
   "tests": {

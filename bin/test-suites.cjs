@@ -10,6 +10,8 @@ const defaults = {
     playwright: ['src/tests/e2e/playwright/**/*.spec.{js,ts}']
 };
 
+class NoBrowserTestsError extends Error {}
+
 function configuration(root = process.cwd()) {
     const file = path.join(root, 'coverage.config.json');
     const config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
@@ -49,7 +51,8 @@ function patterns(runner, config = configuration()) {
 function resolve(runner, {root = process.cwd(), config = configuration(root)} = {}) {
     const base = fs.realpathSync(root);
     const matches = new Set();
-    for (const pattern of patterns(runner, config)) {
+    const selected = patterns(runner, config);
+    for (const pattern of selected) {
         for (const file of fs.globSync(pattern, {cwd: root, exclude: ['**/node_modules/**', '.runtime/**']})) {
             const absolute = path.resolve(root, file);
             const real = fs.realpathSync(absolute);
@@ -62,7 +65,9 @@ function resolve(runner, {root = process.cwd(), config = configuration(root)} = 
             matches.add(file.replaceAll(path.sep, '/'));
         }
     }
-    if (!matches.size) throw new Error(`No ${runner} browser tests found. Configure tests.${runner} in coverage.config.json.`);
+    if (!matches.size) {
+        throw new NoBrowserTestsError(`No ${runner} browser tests found. Searched: ${selected.join(', ')}\nAdd a spec at a matching path or update tests.${runner} in coverage.config.json.`);
+    }
     return [...matches].sort();
 }
 
@@ -83,4 +88,4 @@ function directories(config = configuration(), root = process.cwd()) {
     return [...result].sort();
 }
 
-module.exports = {configuration, patterns, resolve, directories};
+module.exports = {configuration, patterns, resolve, directories, NoBrowserTestsError};
