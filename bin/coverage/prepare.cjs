@@ -103,6 +103,9 @@ function prepare() {
     const allowed = metadata.roots.map(root => escape(`/var/www/html/${root}/`)).join('|') || '(?!)';
     fs.writeFileSync('.runtime/php-scope.ini', `pcov.exclude="~^(?!(?:${allowed}))|/(?:tests?|Test|Tests|node_modules)/~"\n`);
     console.log(`Prepared ${runner} run ${run.id}: ${specs.length} specs, ${scope.included.length} JavaScript/TypeScript files. Templates are not collected.`);
+    if (process.env.APPLICATION_DOMAIN) {
+        console.log(`Watch tests at https://${process.env.APPLICATION_DOMAIN}:${process.env.RUNNER_VIEW_PORT || process.env.CYPRESS_VIEW_PORT || 6080}/`);
+    }
 }
 
 if (require.main === module) {

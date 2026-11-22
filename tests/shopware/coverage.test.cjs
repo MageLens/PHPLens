@@ -161,3 +161,29 @@ test('missing PHP scope fails before replacing previous evidence', t => {
     assert.match(f.execute('bin/coverage/prepare.cjs').stderr, /No eligible PHP application source/);
     assert.equal(f.read('coverage/run.json').id, run.id);
 });
+
+test('preparation prints the viewer root URL for configured and default ports', t => {
+    const f = prepared(t);
+    const runPrepare = extra => spawnSync(process.execPath, ['bin/coverage/prepare.cjs'], {
+        cwd: f.root, encoding: 'utf8',
+        env: {...process.env, MAGELENS_RUNNER: 'playwright', CHROME_VERSION: '157.0.8103.78',
+            APPLICATION_DOMAIN: 'shopware.test', RUNNER_VIEW_PORT: '', CYPRESS_VIEW_PORT: '', ...extra}
+    });
+    const custom = runPrepare({RUNNER_VIEW_PORT: '6081'});
+    assert.equal(custom.status, 0, custom.stderr);
+    assert.match(custom.stdout, /^Watch tests at https:\/\/shopware\.test:6081\/$/m);
+    const fallback = runPrepare({});
+    assert.equal(fallback.status, 0, fallback.stderr);
+    assert.match(fallback.stdout, /^Watch tests at https:\/\/shopware\.test:6080\/$/m);
+});
+
+test('viewer proxy redirects root to auto-reconnecting read-only noVNC and runner receives viewer port', () => {
+    const serve = fs.readFileSync(path.join(repo, 'docker/shopware/serve.sh'), 'utf8');
+    assert.match(serve, /redir \/ \/vnc\.html\?autoconnect=1&resize=scale&view_only=1&reconnect=1&reconnect_delay=1000 302/);
+    assert.match(serve, /header Cache-Control no-cache/);
+    assert.match(serve, /reverse_proxy runner:6080/);
+    const compose = fs.readFileSync(path.join(repo, 'compose.yaml'), 'utf8');
+    const runnerBlock = compose.slice(compose.indexOf('\n  runner:\n'), compose.indexOf('\n  db:\n'));
+    assert.match(runnerBlock, /^\s+init:\s*true$/m);
+    assert.match(runnerBlock, /^\s+RUNNER_VIEW_PORT:\s*\$\{RUNNER_VIEW_PORT:-6080\}$/m);
+});

@@ -37,6 +37,7 @@ qualify_coverage() {
     # The normal application must still work after coverage restores its mounts.
     ./bin/application-compose exec -T app php /tools/ready.php
     ./bin/application-compose exec -T app php < "$root/tests/shopware/report-url.php"
+    ./bin/application-compose exec -T app php < "$root/tests/shopware/viewer-url.php"
 }
 version=()
 [[ -z ${SHOPWARE_TEST_VERSION:-} ]] || version=(--version "$SHOPWARE_TEST_VERSION")

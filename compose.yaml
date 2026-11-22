@@ -49,6 +49,7 @@ services:
       - ./coverage:/reports:ro
   runner:
     profiles: [coverage]
+    init: true
     image: ${COMPOSE_PROJECT_NAME:-shopware}-runner-${MAGELENS_RUNNER:-cypress}
     build:
       context: .
@@ -70,6 +71,7 @@ services:
       PHPLENS_PLATFORM: shopware
       CHROME_VERSION: ${CHROME_VERSION}
       APPLICATION_DOMAIN: ${APPLICATION_DOMAIN}
+      RUNNER_VIEW_PORT: ${RUNNER_VIEW_PORT:-6080}
       CYPRESS_BASE_URL: ${SHOPWARE_ORIGIN}
       PLAYWRIGHT_BASE_URL: ${SHOPWARE_ORIGIN}
       DISPLAY: ":99"

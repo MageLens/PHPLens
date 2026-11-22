@@ -23,6 +23,8 @@ function workflow(t, {runner = 'cypress', failure = '', args = [], interrupted =
 set -euo pipefail
 ROOT=$PWD
 SHOPWARE_ORIGIN=https://custom.test:18443
+APPLICATION_DOMAIN=custom.test
+RUNNER_VIEW_PORT=16081
 MAGELENS_RUNNER=${runner}
 preflight() { :; }
 coverage_fingerprint() { echo current; }
@@ -82,6 +84,7 @@ for (const runner of ['cypress', 'playwright']) {
         assert.ok(!r.exists('.runtime/hooks-active') && !r.exists('.runtime/coverage-override-active'));
         assert.ok(r.calls.indexOf('hooks.php cleanup') < r.calls.lastIndexOf('normal up'));
         assert.ok(r.calls.lastIndexOf('normal up') < r.calls.indexOf('runner node -p'));
+        assert.match(r.calls, /normal exec -T -e APPLICATION_DOMAIN=custom\.test -e RUNNER_VIEW_PORT=16081 runner node bin\/coverage\/prepare\.cjs/);
         assert.doesNotMatch(r.calls, /phpfpm|bin\/magento|template|theme-scope/);
     });
     for (const failure of ['stopped', 'metadata', 'prepare', 'theme-save', 'theme-restore', 'hook', 'build', 'warmup', 'tests', 'php-report', 'finalize', 'cleanup', 'restore', 'publish', 'signal']) {

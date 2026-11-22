@@ -34,7 +34,14 @@ EOF
     tail -n +2 /etc/caddy/Caddyfile
     echo '}'
     if [ -n "${RUNNER_VIEW_PORT:-}" ]; then
-        printf 'https://%s:%s {\n tls internal\n reverse_proxy runner:6080\n}\n' "$APPLICATION_DOMAIN" "$RUNNER_VIEW_PORT"
+        cat <<EOF
+https://${APPLICATION_DOMAIN}:${RUNNER_VIEW_PORT} {
+    tls internal
+    redir / /vnc.html?autoconnect=1&resize=scale&view_only=1&reconnect=1&reconnect_delay=1000 302
+    header Cache-Control no-cache
+    reverse_proxy runner:6080
+}
+EOF
     fi
 } > /tmp/shopware.Caddyfile
 sed 's|/etc/caddy/Caddyfile|/tmp/shopware.Caddyfile|' /etc/supervisord.conf > /tmp/shopware-supervisord.conf

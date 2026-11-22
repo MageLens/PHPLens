@@ -91,7 +91,7 @@ Playwright scenarios under the default directory import `test` and `expect` from
 
 Coverage includes project PHP and active local extensions; third-party source requires `vendorRoots`. JavaScript instrumentation covers standalone source files under extension `Resources/app/storefront/src` and `Resources/app/administration/src`, plus project `assets/`. Eligible files that never execute remain uncovered. Configure exclusions and required JavaScript execution through the existing `javascript` settings in `coverage.config.json`.
 
-Open `https://<domain>:6080/vnc.html` to watch the browser; set `RUNNER_VIEW_PORT` to choose a different free port. Reports are available at `https://<domain>/coverage/index.html` after successful collection, source verification and cleanup, and locally in `coverage/`. Nondefault HTTPS ports are included in the printed URL. Failed, skipped or interrupted suites do not publish a success report.
+Open `https://<domain>:6080/` to watch the browser; set `RUNNER_VIEW_PORT` to choose a different free port. Reports are available at `https://<domain>/coverage/index.html` after successful collection, source verification and cleanup, and locally in `coverage/`. Nondefault HTTPS ports are included in the printed URL. Failed, skipped or interrupted suites do not publish a success report.
 
 `--refresh-cache` clears Shopware caches in the disposable application. `--refresh-assets` forces dependency installation during its asset builds. `--restart-php` restarts the disposable application before collection. Use `./bin/runner COMMAND` to work in the selected browser container.
 

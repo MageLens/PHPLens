@@ -231,3 +231,7 @@ The following index links retained boundaries to the numbered findings above. Ad
 | SW-AUDIT-014 | [tests/playwright.test.cjs](../../tests/playwright.test.cjs#L5) |
 | SW-AUDIT-014 | [tests/verify-demo.cjs](../../tests/verify-demo.cjs#L5) |
 | SW-AUDIT-015 | [AGENTS.md](../../AGENTS.md#L13) |
+
+## Required actions
+
+- **Decouple or clean up [`docker/php/project.php`](../../docker/php/project.php) (SW-AUDIT-006):** Do not delete this file while Shopware coverage is active—[`docker/php/manifest.php`](../../docker/php/manifest.php#L13) (and [`docker/php/report.php`](../../docker/php/report.php#L10)) require it for the shared `project()` metadata reader (`COVERAGE_PROJECT_FILE` / `/project.json`). Shopware source discovery runs from [`docker/shopware/project.php`](../../docker/shopware/project.php) (mounted as `/tools/project.php`). Remove the legacy Magento `ComponentRegistrar` CLI block ([`docker/php/project.php`](../../docker/php/project.php#L18-L31)) only when retiring its remaining Magento consumers ([`docker/php/install-magento.sh`](../../docker/php/install-magento.sh#L38), [`docker/php/configure-theme.php`](../../docker/php/configure-theme.php#L74), and [`docker/php/project-hooks.php`](../../docker/php/project-hooks.php#L12)), keeping `project()` available to `manifest.php` or moving it into a shared helper.

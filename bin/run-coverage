@@ -108,7 +108,10 @@ fi
 say 'Discovering active Shopware sources and preparing browser suites'
 dc exec -T app php -d error_reporting=-1 -d display_errors=stderr -d log_errors=0 /tools/project.php > .runtime/shopware-project.json
 # Native project metadata needs read-only access to the runner configuration.
-dc exec -T runner node bin/coverage/prepare.cjs
+viewer_env=()
+[[ -z ${APPLICATION_DOMAIN:-} ]] || viewer_env+=(-e "APPLICATION_DOMAIN=$APPLICATION_DOMAIN")
+[[ -z ${RUNNER_VIEW_PORT:-} ]] || viewer_env+=(-e "RUNNER_VIEW_PORT=$RUNNER_VIEW_PORT")
+dc exec -T ${viewer_env[@]+"${viewer_env[@]}"} runner node bin/coverage/prepare.cjs
 # Publish the override marker before recreation, including failure/interruption paths.
 touch .runtime/coverage-override-active
 override_active=1
