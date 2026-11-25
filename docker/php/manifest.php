@@ -26,6 +26,10 @@ function applicationFiles(string $directory): array
 
 function applicationIdentity(): array
 {
+    if ((project()['platform'] ?? '') === 'shopware') {
+        require_once '/application/docker/shopware/identity.php';
+        return shopwareCoverageIdentity();
+    }
     $root = '/var/www/html';
     $sources = [];
     foreach (project()['roots'] as $source) $sources = array_merge($sources, applicationFiles("$root/$source"));

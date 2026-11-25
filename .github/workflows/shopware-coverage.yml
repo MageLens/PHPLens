@@ -1,0 +1,72 @@
+# Copyright (c)  MageLens
+# SPDX-License-Identifier: Elastic-2.0
+# License: see LICENSE in the repository root.
+
+name: Shopware coverage
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+permissions:
+  contents: read
+jobs:
+  coverage:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-ci'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [cypress, playwright]
+    env:
+      MAGELENS_RUNNER: ${{ matrix.runner }}
+      SHOPWARE_TEST_VERSION: 6.7.16.1
+      SHOPWARE_COVERAGE_ACCEPTANCE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: npm --prefix tests/shopware ci --ignore-scripts
+      - run: node tests/check-copyright.cjs
+        env:
+          COPYRIGHT_BASE: ${{ github.event.pull_request.base.sha }}
+      - run: npm run test:shopware
+      - name: Install pinned Chrome for installer acceptance
+        shell: bash
+        run: |
+          source bin/dependencies
+          load_dependencies dependencies.yaml
+          curl -fsSL "https://storage.googleapis.com/chrome-for-testing-public/$CHROME_VERSION/linux64/chrome-linux64.zip" -o "$RUNNER_TEMP/chrome.zip"
+          echo "$CHROME_LINUX_X64_SHA256  $RUNNER_TEMP/chrome.zip" | sha256sum -c
+          unzip -q "$RUNNER_TEMP/chrome.zip" -d "$RUNNER_TEMP"
+          echo "CHROME_BIN=$RUNNER_TEMP/chrome-linux64/chrome" >> "$GITHUB_ENV"
+          echo "CHROME_VERSION=$CHROME_VERSION" >> "$GITHUB_ENV"
+      - name: Qualify fresh, adopted and restored shops
+        run: bash tests/shopware/e2e.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: shopware-coverage-${{ matrix.runner }}-attempt-${{ github.run_attempt }}
+          path: shopware-reports/
+          if-no-files-found: error
+  compare:
+    needs: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: shopware-coverage-*-attempt-${{ github.run_attempt }}
+          path: shopware-reports
+          merge-multiple: true
+      - run: node tests/shopware/compare-coverage.cjs

@@ -3,24 +3,11 @@
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
 
-# TO DO [SW-AUDIT-001]: Retain this runner entry point for the later port. Replace the generated
-# bin/docker-compose dependency only when a Shopware runner service exists.
-
-set -euo pipefail
-cd "$(dirname "$0")/.."
+source "$(dirname "$0")/common"
 if [[ $# == 0 || "${1:-}" == --help || "${1:-}" == -h ]]; then
-    cat <<'HELP'
-Usage: ./bin/runner COMMAND [arguments...]
-
-Run a command in the installed Cypress or Playwright container.
-Services must be running; use ./bin/start if they are stopped.
-
-  ./bin/runner node --version
-  ./bin/runner npm --version
-  ./bin/runner bash
-
-Use ./bin/run-coverage for the full test suite and fresh coverage reports.
-HELP
+    printf 'Usage: ./bin/runner COMMAND [arguments...]\nRun a command in the installed browser runner. Start services with ./bin/start.\n'
     exit 0
 fi
-exec ./bin/docker-compose exec runner "$@"
+flags=()
+[[ -t 0 && -t 1 ]] || flags+=(-T)
+dc exec ${flags[@]+"${flags[@]}"} runner "$@"

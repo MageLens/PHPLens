@@ -14,6 +14,7 @@ function escapeHtml(value) {
 }
 
 function templateLimitations(templates) {
+    if (!templates) return {directives: [], scripts: [], generated: []};
     return {
         directives: templates.templates.flatMap(entry => (entry.unsupportedDirectives || []).map(reason => ({path: entry.path, reason}))),
         scripts: templates.scripts?.unsupported || [],
@@ -27,9 +28,9 @@ function writeIndex({run, generatedAt, metrics, php, js, templates, tests}) {
         {key: 'php', covered: php.covered, total: php.total, unit: 'lines',
             description: 'Executable PHP in .php and .phtml files; original source, without HTML or JavaScript lines.'},
         {key: 'js', covered: js.total.statements.covered, total: js.total.statements.total, unit: 'statements',
-            description: 'Whole .js files executed in the browser.'},
-        {key: 'templates', covered: templates.lines.covered, total: templates.lines.total, unit: 'template lines',
-            description: `HTML/PHTML bindings and inline script execution. DOM presence: ${templates.summary.covered}/${templates.summary.eligible} templates (${templates.summary.percent}%).`}
+            description: 'Browser JavaScript and TypeScript mapped to original source files.'},
+        ...(templates ? [{key: 'templates', covered: templates.lines.covered, total: templates.lines.total, unit: 'template lines',
+            description: `HTML/PHTML bindings and inline script execution. DOM presence: ${templates.summary.covered}/${templates.summary.eligible} templates (${templates.summary.percent}%).`}] : [])
     ];
     const rows = reports.map(report => {
         const metric = metrics[report.key];
@@ -43,7 +44,8 @@ function writeIndex({run, generatedAt, metrics, php, js, templates, tests}) {
     }).join('\n');
     const javascript = fs.existsSync('coverage/javascript-summary.json') ? JSON.parse(fs.readFileSync('coverage/javascript-summary.json')) : null;
     const javascriptDetails = javascript ? `<p class="note">JavaScript reports: <a href="js-application/index.html">application</a> · <a href="js-libraries/index.html">bundled libraries</a>. <a href="javascript-summary.json">Group totals</a> · <a href="javascript-scope.json">Scope and exclusion reasons</a>.</p>` : '';
-    const templateDetails = templates.scripts ? `<p class="note">Template scripts: ${templates.scripts.instrumented} instrumented; ${templates.scripts.unsupported.length} unsupported; ${templates.scripts.generated.length} PHP-generated fragments without a static map. <a href="templates/index.html">Template report</a> · <a href="templates/coverage-summary.json">Template coverage details</a>.</p>` : '';
+    const javascriptWarning = javascript?.unsupported?.length ? `<p class="note"><strong>JavaScript measurement is partial.</strong> ${javascript.unsupported.length} component source files are not instrumented. <a href="javascript-scope.json">Inspect unsupported sources and reasons</a>.</p>` : '';
+    const templateDetails = templates?.scripts ? `<p class="note">Template scripts: ${templates.scripts.instrumented} instrumented; ${templates.scripts.unsupported.length} unsupported; ${templates.scripts.generated.length} PHP-generated fragments without a static map. <a href="templates/index.html">Template report</a> · <a href="templates/coverage-summary.json">Template coverage details</a>.</p>` : '';
     const gaps = templateLimitations(templates);
     const templateWarning = Object.values(gaps).some(items => items.length) ? `<p class="note"><strong>Template measurement is partial.</strong> ${gaps.directives.length} unsupported directives, ${gaps.scripts.length} unsupported scripts and ${gaps.generated.length} unmapped PHP outputs are not fully measured. The percentage covers instrumented constructs only. <a href="templates/coverage-summary.json">Inspect the affected files and reasons</a>.</p>` : '';
     fs.writeFileSync('coverage/index.html', `<!doctype html>
@@ -85,7 +87,7 @@ code { overflow-wrap: anywhere; }
 <main>
 <span class="status">${runner} passed · ${tests.totalPassed}/${tests.totalTests} tests</span>
 <h1>MageLens coverage report</h1>
-<p class="intro">PHP, JavaScript and browser-template coverage from the same ${runner} run. Open a report to inspect individual files.</p>
+<p class="intro">PHP and JavaScript${templates ? ' and browser-template' : ''} coverage from the same ${runner} run. Open a report to inspect individual files.</p>
 <div class="reports">
 <table>
 <caption>Coverage overview</caption>
@@ -93,8 +95,9 @@ code { overflow-wrap: anywhere; }
 <tbody>${rows}</tbody>
 </table>
 </div>
-<p class="note">PHP measures executable lines; JavaScript measures statements so minified bundles do not distort the percentage. Template coverage measures bindings, template expressions and inline scripts in HTML/PHTML, mapped to their original source. Script functions, branches and DOM presence are reported separately. Unvisited eligible code remains in the denominator.</p>
+<p class="note">PHP measures executable lines; JavaScript measures statements so minified bundles do not distort the percentage. ${templates ? 'Template coverage measures bindings, template expressions and inline scripts in HTML/PHTML, mapped to their original source. Script functions, branches and DOM presence are reported separately.' : 'Templates and inline scripts: not collected.'} Unvisited eligible code remains in the denominator.</p>
 ${javascriptDetails}
+${javascriptWarning}
 ${templateDetails}
 ${templateWarning}
 <footer>

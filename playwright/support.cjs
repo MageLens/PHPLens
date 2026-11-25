@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
 
-// TO DO [SW-AUDIT-007]: Retain template coverage fixtures used by inherited Playwright tests.
-// Replace the template backend through an engine adapter while preserving JS collection.
+// Template collection is retained for inherited Magento runs and disabled for Shopware.
 
 const fs = require('node:fs');
 const {randomUUID} = require('node:crypto');
 const {createCoverageMap} = require('istanbul-lib-coverage');
-const {withTemplateCoverage} = require('@vitaliiboiko/magento-template-coverage/playwright');
+const withTemplateCoverage = (base, options) => process.env.PHPLENS_PLATFORM === 'shopware' ? base : require('@vitaliiboiko/magento-template-coverage/playwright').withTemplateCoverage(base, options);
 const playwright = require('@playwright/test');
 const {disablePageTransitions} = require('../bin/browser-navigation.cjs');
 function withCoverage(base = playwright.test) {

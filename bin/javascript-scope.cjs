@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
 
@@ -8,7 +8,7 @@ const {isCoverageExcluded, readCoverageConfig} = require('./project.cjs');
 function createJavascriptScope(sourceFiles, config = readCoverageConfig().javascript || {}) {
     if (config.metric !== undefined && config.metric !== 'statements') throw new Error('JavaScript reporting uses statements so minified lines do not distort coverage');
     if (config.inline !== undefined) throw new Error('Remove javascript.inline: inline scripts are always measured by template coverage.');
-    const files = sourceFiles.filter(file => file.endsWith('.js')).map(file =>
+    const files = sourceFiles.filter(file => /\.[cm]?[jt]s$/.test(file) && !/\.d\.[cm]?ts$/.test(file)).map(file =>
         path.relative(path.resolve('src'), path.resolve(file)).replaceAll('\\', '/')).sort();
     const available = new Set(files), exclusions = new Map();
     const libraries = new Set(config.libraries || []), requiredExecuted = config.requiredExecuted || [];

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
 
@@ -9,7 +9,7 @@ const {specPatterns, warmupPaths} = require('./project.cjs');
 const warmup = process.argv.includes('--warmup');
 const run = JSON.parse(fs.readFileSync('coverage/run.json'));
 const projectFixtures = JSON.parse(fs.readFileSync('coverage/project-fixtures.json'));
-const expectedSpecs = warmup ? ['cypress/warmup/storefront.cy.js'] : fs.globSync(specPatterns()).sort();
+const expectedSpecs = warmup ? ['cypress/warmup/storefront.cy.js'] : (run.specs || fs.globSync(specPatterns()).sort());
 if (!expectedSpecs.length) throw new Error('Add your project tests to cypress/e2e/*.cy.js before running coverage.');
 const options = warmup ? {
     expose: {warmup: true, coverageRun: null, projectFixtures, warmupPaths: warmupPaths(projectFixtures)},
@@ -18,7 +18,7 @@ const options = warmup ? {
         pageLoadTimeout: 180000, defaultCommandTimeout: 180000, responseTimeout: 180000,
         retries: 0, screenshotsFolder: 'coverage/warmup-screenshots'
     }
-} : {expose: {warmup: false, coverageRun: run.id, projectFixtures}};
+} : {expose: {warmup: false, coverageRun: run.id, projectFixtures}, config: {specPattern: expectedSpecs}};
 const resultsFile = warmup ? 'coverage/warmup-results.json' : 'coverage/cypress-results.json';
 cypress.run({browser: 'chrome-for-testing', headed: true, ...options}).then(results => {
     fs.writeFileSync(resultsFile, JSON.stringify({

@@ -1,0 +1,8 @@
+{
+  "name": "phplens/coverage-probe",
+  "description": "Controlled PHP and browser coverage acceptance fixture",
+  "type": "shopware-platform-plugin",
+  "license": "Elastic-2.0",
+  "autoload": {"psr-4": {"CoverageProbe\\": "src/"}},
+  "extra": {"shopware-plugin-class": "CoverageProbe\\CoverageProbe", "label": {"en-GB": "Coverage probe"}}
+}

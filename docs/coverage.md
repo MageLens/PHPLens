@@ -6,6 +6,8 @@ License: see LICENSE in the repository root.
 
 # MageLens coverage
 
+For Shopware 6, follow [Run browser tests with coverage](../README.md#run-browser-tests-with-coverage). That path collects PHP and JavaScript/TypeScript; Twig and template collection are disabled. The reference below describes the inherited Magento/Mage-OS collectors and configuration.
+
 Run `./bin/run-coverage` from the repository root, then open the report URL printed on success, or `coverage/index.html` locally. The command runs the full suite for the runner selected during installation and generates PHP, JavaScript, and HTML template reports. Cypress and Playwright both run in Docker, with a browser visible through the live viewer. See the [quick start](../README.md#quick-start) for installation.
 
 The public report uses the configured default storefront URL, including its protocol, port and base path where routing supports it. Each new run removes the previous public link until collection, report validation and cleanup succeed. Existing installations must rerun installation with their saved platform, theme and runner flags to enable the report mount and web-server configuration.
