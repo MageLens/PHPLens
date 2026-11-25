@@ -1,6 +1,8 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// Template collection is retained for inherited Magento runs and disabled for Shopware.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -57,7 +59,7 @@ for (const [group, coverageMap] of Object.entries(maps)) {
     groups[group] = coverageMap.getCoverageSummary().toJSON();
 }
 fs.writeFileSync('coverage/javascript-summary.json', JSON.stringify({run: run.id, metric: 'statements', groups,
-    excluded: scope.excluded}, null, 2));
-execFileSync('node_modules/.bin/magento-template-coverage', ['report',
+    excluded: scope.excluded, unsupported: scope.unsupported || []}, null, 2));
+if (run.collectors?.templates !== false) execFileSync('node_modules/.bin/magento-template-coverage', ['report',
     '--manifest', 'coverage/template-manifest.json', '--hits', 'coverage/raw/templates',
     '--output', 'coverage/templates'], {stdio: 'inherit'});

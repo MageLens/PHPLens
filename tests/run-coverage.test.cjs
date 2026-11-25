@@ -9,193 +9,115 @@ const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 
-function workflow(t, args = [], failure = '', interrupted = false, runner = 'cypress', installedVersion = '5', setup = () => {}) {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'magelens-workflow-'));
-    t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
-    for (const name of ['bin', '.runtime', 'coverage']) fs.mkdirSync(path.join(directory, name));
-    fs.copyFileSync(path.resolve(__dirname, '../bin/run-coverage'), path.join(directory, 'bin/run-coverage'));
-    fs.writeFileSync(path.join(directory, '.runtime/installed'), installedVersion + '\n');
-    if (interrupted) fs.writeFileSync(path.join(directory, '.runtime/hooks-active'), '');
-    fs.writeFileSync(path.join(directory, 'bin/common'), `
+function workflow(t, {runner = 'cypress', failure = '', args = [], interrupted = false, profile = true} = {}) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shopware-workflow-'));
+    t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    for (const name of ['bin', '.runtime', '.runtime/pcov', 'coverage']) fs.mkdirSync(path.join(root, name));
+    fs.copyFileSync(path.join(__dirname, '../bin/run-coverage'), path.join(root, 'bin/run-coverage'));
+    fs.writeFileSync(path.join(root, '.runtime/installed'), '6.7.16.1\n');
+    if (profile) fs.writeFileSync(path.join(root, '.runtime/coverage-profile'), `1 ${runner} current\n`);
+    fs.writeFileSync(path.join(root, 'coverage/.published'), 'old');
+    if (interrupted) for (const file of ['hooks-active', 'coverage-override-active']) fs.writeFileSync(path.join(root, '.runtime', file), '');
+    if (interrupted) fs.writeFileSync(path.join(root, '.runtime/pcov/theme-state.json'), '[]');
+    fs.writeFileSync(path.join(root, 'bin/common'), `
 set -euo pipefail
 ROOT=$PWD
+SHOPWARE_ORIGIN=https://custom.test:18443
+APPLICATION_DOMAIN=custom.test
+RUNNER_VIEW_PORT=16081
 MAGELENS_RUNNER=${runner}
 preflight() { :; }
-say() { printf '%s\\n' \"$*\"; }
+coverage_fingerprint() { echo current; }
+say() { printf '%s\\n' "$*"; }
 fail() { echo "$*" >&2; exit 1; }
 lock_workflow() { mkdir .runtime/workflow.lock; }
-dc() {
+dc() { execute normal "$@"; }
+coverage_dc() { execute coverage "$@"; }
+execute() {
     printf '%s\\n' "$*" >> calls
     case "$*" in
-        *report-url.php) [[ "$TEST_FAILURE" != url ]] || return 1; echo 'http://custom.test:8080/shop/media/coverage/index.html' ;;
-        *project-hooks.php\\ cleanup) [[ "$TEST_FAILURE" != cleanup ]] || return 1 ;;
-        *prepare.cjs*) rm -rf coverage; mkdir coverage; test ! -L src/pub/media/coverage ;;
-        *report-browser.cjs*) [[ "$TEST_FAILURE" != browser-report && "$TEST_FAILURE" != finalize ]] || return 1
-            printf '<html>current</html>' > coverage/index.html; echo '{}' > coverage/summary.json ;;
-        *theme-scope.php) echo '[]' ;;
-        *project-hooks.php\\ prepare) echo '{}' ;;
+        *runner\\ true) [[ "$TEST_FAILURE" != stopped ]] || return 1 ;;
+        *project.php) [[ "$TEST_FAILURE" != metadata ]] || return 1; echo '{}' ;;
+        *prepare.cjs)
+            [[ "$TEST_FAILURE" != prepare ]] || return 1
+            rm -rf coverage; mkdir coverage
+            printf '{"id":"0123456789abcdef0123456789abcdef"}' > coverage/run.json ;;
+        *hooks.php\\ cleanup) [[ "$TEST_FAILURE" != cleanup ]] || return 1 ;;
+        *hooks.php\\ before) [[ "$TEST_FAILURE" != hook ]] || return 1 ;;
+        *hooks.php\\ prepare) echo '{}' ;;
+        *theme-state.php\\ save) [[ "$TEST_FAILURE" != theme-save ]] || return 1; echo '[]' > .runtime/pcov/theme-state.json ;;
+        *theme-state.php\\ restore) [[ "$TEST_FAILURE" != theme-restore ]] || return 1; rm -f .runtime/pcov/theme-state.json ;;
+        *storefront-build*) [[ "$TEST_FAILURE" != build ]] || return 1 ;;
         *collection.php\\ start) touch coverage/.active-run ;;
         *collection.php\\ stop) rm -f coverage/.active-run ;;
-        *report.php) [[ "$TEST_FAILURE" != php-report ]] || return 1 ;;
-        *app\\ test*) [[ "$TEST_FAILURE" != publish ]] || return 1 ;;
-        *app\\ sh*) [[ "$TEST_FAILURE" != mount ]] || return 1 ;;
         *run-browser.cjs\\ --warmup|*run-playwright.cjs\\ --warmup) [[ "$TEST_FAILURE" != warmup ]] || return 124 ;;
-        *run-browser.cjs|*run-playwright.cjs) [[ "$TEST_FAILURE" != tests ]] || return 23 ;;
+        *run-browser.cjs|*run-playwright.cjs)
+            [[ "$TEST_FAILURE" != signal ]] || kill -TERM $$
+            [[ "$TEST_FAILURE" != tests ]] || return 23 ;;
+        *report.php) [[ "$TEST_FAILURE" != php-report ]] || return 1; rm -f coverage/.active-run ;;
+        *report-browser.cjs*) [[ "$TEST_FAILURE" != finalize ]] || return 1; echo '<html>current</html>' > coverage/index.html ;;
+        *normal\\ up*) [[ "$TEST_FAILURE" != restore ]] || return 1 ;;
+        *runner\\ node\\ -p*) [[ "$TEST_FAILURE" != publish ]] || return 1; echo 0123456789abcdef0123456789abcdef ;;
     esac
+    return 0
 }
 `);
-    setup(directory);
-    const result = spawnSync('bash', ['bin/run-coverage', ...args], {
-        cwd: directory, encoding: 'utf8', env: {...process.env, TEST_FAILURE: failure},
-    });
-    const calls = fs.existsSync(path.join(directory, 'calls')) ? fs.readFileSync(path.join(directory, 'calls'), 'utf8') : '';
-    assert.equal(fs.existsSync(path.join(directory, '.runtime/workflow.lock')), false);
-    assert.equal(fs.existsSync(path.join(directory, 'coverage/.active-run')), false);
-    if (result.status !== 0) assert.doesNotMatch(result.stdout, /Open the combined coverage report:|http:\/\/custom/);
-    return {...result, calls, directory};
+    const result = spawnSync('bash', ['bin/run-coverage', ...args], {cwd: root, encoding: 'utf8', env: {...process.env, TEST_FAILURE: failure}});
+    const calls = fs.existsSync(path.join(root, 'calls')) ? fs.readFileSync(path.join(root, 'calls'), 'utf8') : '';
+    const exists = file => fs.existsSync(path.join(root, file));
+    assert.equal(exists('.runtime/workflow.lock'), false);
+    assert.equal(exists('coverage/.active-run'), false);
+    if (result.status) {
+        assert.doesNotMatch(result.stdout, /Open the combined coverage report/);
+        // An incompatible installation fails before acquiring the lock or invalidating reports.
+        if (profile) assert.equal(exists('coverage/.published'), false);
+    }
+    return {...result, root, calls, exists};
 }
 
 for (const runner of ['cypress', 'playwright']) {
-
-test(`${runner}: publishes complete reports after cleanup`, t => {
-    const result = workflow(t, [], '', false, runner);
-    assert.equal(result.status, 0, result.stderr);
-    const link = path.join(result.directory, 'src/pub/media/coverage');
-    assert.equal(fs.readlinkSync(link), '../../../coverage');
-    assert.equal(fs.readFileSync(path.join(link, 'index.html'), 'utf8'), '<html>current</html>');
-    assert.ok(fs.existsSync(path.join(link, 'summary.json')));
-    assert.match(result.stdout, /Open the combined coverage report: http:\/\/custom.test:8080\/shop\/media\/coverage\/index.html/);
-    assert.doesNotMatch(result.stdout, /Local report:/);
-    assert.ok(result.calls.lastIndexOf('project-hooks.php cleanup') < result.calls.indexOf('report-url.php'));
-});
-
-for (const failure of ['mount', 'warmup', 'tests', 'php-report', 'browser-report', 'finalize', 'cleanup', 'url', 'publish']) {
-    test(`${runner}: ${failure} failure leaves no public report or success URL`, t => {
-        const result = workflow(t, [], failure, false, runner, '5', directory => {
-            fs.mkdirSync(path.join(directory, 'src/pub/media'), {recursive: true});
-            fs.writeFileSync(path.join(directory, 'coverage/index.html'), 'old report');
-            fs.symlinkSync('../../../coverage', path.join(directory, 'src/pub/media/coverage'));
+    test(`${runner}: publishes only after fixture cleanup and normal application restoration`, t => {
+        const r = workflow(t, {runner});
+        assert.equal(r.status, 0, r.stderr);
+        assert.match(r.stdout, /https:\/\/custom.test:18443\/coverage\/index.html/);
+        assert.ok(r.exists('coverage/.published'));
+        assert.ok(!r.exists('.runtime/hooks-active') && !r.exists('.runtime/coverage-override-active'));
+        assert.ok(r.calls.indexOf('hooks.php cleanup') < r.calls.lastIndexOf('normal up'));
+        assert.ok(r.calls.lastIndexOf('normal up') < r.calls.indexOf('runner node -p'));
+        assert.match(r.calls, /normal exec -T -e APPLICATION_DOMAIN=custom\.test -e RUNNER_VIEW_PORT=16081 runner node bin\/coverage\/prepare\.cjs/);
+        assert.doesNotMatch(r.calls, /phpfpm|bin\/magento|template|theme-scope/);
+    });
+    for (const failure of ['stopped', 'metadata', 'prepare', 'theme-save', 'theme-restore', 'hook', 'build', 'warmup', 'tests', 'php-report', 'finalize', 'cleanup', 'restore', 'publish', 'signal']) {
+        test(`${runner}: ${failure} leaves no public success and releases the lock`, t => {
+            const r = workflow(t, {runner, failure});
+            assert.notEqual(r.status, 0, r.stdout);
+            if (failure === 'cleanup') assert.ok(r.exists('.runtime/hooks-active'));
+            if (failure === 'restore') assert.ok(r.exists('.runtime/coverage-override-active'));
+            if (failure === 'theme-restore') assert.ok(r.exists('.runtime/coverage-override-active') && r.exists('.runtime/pcov/theme-state.json'));
+            if (failure === 'signal') assert.equal(r.status, 143);
         });
-        assert.notEqual(result.status, 0, result.stderr);
-        assert.equal(fs.existsSync(path.join(result.directory, 'src/pub/media/coverage')), false);
-        if (['cleanup', 'url', 'publish'].includes(failure)) assert.equal(result.status, 1, result.stderr);
-        if (failure === 'cleanup') {
-            assert.ok(fs.existsSync(path.join(result.directory, '.runtime/hooks-active')), 'Failed cleanup must retain the recovery marker');
-            assert.doesNotMatch(result.calls, /report-url.php/, 'Failed cleanup must prevent publication');
-        }
-        if (failure === 'url') assert.doesNotMatch(result.calls, /app test -r/, 'Invalid URL must stop publication');
+    }
+    test(`${runner}: interrupted hooks recover before replacing the disposable application`, t => {
+        const r = workflow(t, {runner, interrupted: true});
+        assert.equal(r.status, 0, r.stderr);
+        assert.ok(r.calls.indexOf('hooks.php cleanup') < r.calls.indexOf('prepare.cjs'));
+        assert.ok(r.calls.indexOf('theme-state.php restore') < r.calls.indexOf('prepare.cjs'));
+        assert.equal(r.exists('.runtime/hooks-active'), false);
+        assert.equal(r.exists('.runtime/pcov/theme-state.json'), false);
+    });
+    test(`${runner}: refresh and startup flags use Shopware services and native commands`, t => {
+        const r = workflow(t, {runner, args: ['--start', '--refresh-cache', '--refresh-assets', '--restart-php']});
+        assert.equal(r.status, 0, r.stderr);
+        assert.match(r.calls, /normal --profile coverage up.*app runner/);
+        assert.match(r.calls, /bin\/console cache:clear/);
+        assert.match(r.calls, /storefront-build --no-interaction --force-install-dependencies/);
+        assert.match(r.calls, /coverage restart -t 60 app/);
     });
 }
 
-test(`${runner}: a repeated run removes obsolete report files`, t => {
-    const result = workflow(t, [], '', false, runner, '5', directory => {
-        fs.mkdirSync(path.join(directory, 'src/pub/media'), {recursive: true});
-        fs.symlinkSync('../../../coverage', path.join(directory, 'src/pub/media/coverage'));
-        fs.writeFileSync(path.join(directory, 'coverage/obsolete.html'), 'old');
-    });
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(fs.existsSync(path.join(result.directory, 'src/pub/media/coverage/obsolete.html')), false);
-});
-
-for (const kind of ['file', 'directory', 'symlink']) test(`${runner}: preserves conflicting ${kind}`, t => {
-    const result = workflow(t, [], '', false, runner, '5', directory => {
-        const destination = path.join(directory, 'src/pub/media/coverage');
-        fs.mkdirSync(path.dirname(destination), {recursive: true});
-        if (kind === 'file') fs.writeFileSync(destination, 'keep');
-        else if (kind === 'directory') fs.mkdirSync(destination);
-        else fs.symlinkSync('unrelated', destination);
-    });
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Move it aside first/);
-    assert.ok(fs.lstatSync(path.join(result.directory, 'src/pub/media/coverage')));
-});
-
-const browserScript = runner === 'cypress' ? 'run-browser.cjs' : 'run-playwright.cjs';
-test(`${runner}: default run preserves running services, configuration and caches`, t => {
-    const result = workflow(t, [], '', false, runner);
-    assert.equal(result.status, 0, result.stderr);
-    assert.doesNotMatch(result.calls, /^(up|run|stop|restart) |cache:|config:set|refresh-assets|base-url/m);
-    assert.equal((result.calls.match(/project-hooks.php cleanup/g) || []).length, 1);
-    assert.match(result.calls, /report.php/);
-    assert.match(result.calls, /finalize.cjs/);
-    const ordered = ['prepare.cjs', 'project-hooks.php before', 'project-hooks.php prepare',
-        `timeout --signal=TERM --kill-after=10s 600s node bin/${browserScript} --warmup`,
-        'manifest.php', 'collection.php start', `runner node bin/${browserScript}\n`, 'report.php'];
-    for (const command of ordered) assert.ok(result.calls.includes(command), `Missing command: ${command}`);
-    for (let index = 1; index < ordered.length; index++) {
-        assert.ok(result.calls.indexOf(ordered[index - 1]) < result.calls.indexOf(ordered[index]), `${ordered[index - 1]} must precede ${ordered[index]}`);
-    }
-});
-
-test(`${runner}: refreshes run only when requested`, t => {
-    const result = workflow(t, ['--start', '--refresh-assets', '--refresh-cache', '--restart-php'], '', false, runner);
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.calls, /^up /m);
-    assert.match(result.calls, /^restart -t 60 phpfpm$/m);
-    assert.match(result.calls, /refresh-assets.sh/);
-    assert.doesNotMatch(result.calls, /cache:clean/, 'Asset refresh already cleans caches');
-    const cache = workflow(t, ['--refresh-cache'], '', false, runner);
-    assert.match(cache.calls, /cache:clean/);
-    assert.doesNotMatch(cache.calls, /refresh-assets.sh/);
-});
-
-test(`${runner}: failed tests close collection and clean fixtures without publishing reports`, t => {
-    const result = workflow(t, [], 'tests', true, runner);
-    assert.equal(result.status, 23, result.stderr);
-    assert.equal((result.calls.match(/project-hooks.php cleanup/g) || []).length, 2, 'Recover interrupted fixtures and clean current fixtures');
-    assert.equal((result.calls.match(/collection.php stop/g) || []).length, 2);
-    assert.doesNotMatch(result.calls, /report.php|finalize.cjs/);
-    assert.equal(fs.existsSync(path.join(result.directory, '.runtime/hooks-active')), false);
-});
-
-test(`${runner}: warm-up timeout cleans hooks before collection and does not run tests or reports`, t => {
-    const result = workflow(t, [], 'warmup', false, runner);
-    assert.equal(result.status, 124, result.stderr);
-    assert.match(result.stderr, /exceeded its 10-minute limit/);
-    assert.match(result.stderr, /warmup-diagnostics.json/);
-    assert.equal((result.calls.match(/project-hooks.php cleanup/g) || []).length, 1);
-    assert.doesNotMatch(result.calls, /collection.php start|runner node bin\/run-(browser|playwright).cjs\n|manifest.php|report.php|finalize.cjs/);
-    assert.equal(fs.existsSync(path.join(result.directory, '.runtime/hooks-active')), false);
-});
-
-test(`${runner}: old installations require an update before launching a headed browser`, t => {
-    for (const version of runner === 'cypress' ? ['2', '3', '4'] : ['2', '3']) {
-        const result = workflow(t, [], '', false, runner, version);
-        assert.equal(result.status, 1);
-        assert.match(result.stderr, /saved platform, theme and runner flags/);
-        assert.match(result.stderr, /current browser runner/);
-        assert.equal(result.calls, '');
-    }
-});
-}
-
-test('the Cypress cookie update does not require rebuilding an existing Chrome Playwright runner', t => {
-    const result = workflow(t, [], '', false, 'playwright', '4');
-    assert.equal(result.status, 0);
-    assert.match(result.calls, /run-playwright.cjs/);
-});
-
-test('help and invalid options do not touch the environment', t => {
-    assert.equal(workflow(t, ['--help']).calls, '');
-    const result = workflow(t, ['--unknown']);
-    assert.equal(result.status, 1);
-    assert.equal(result.calls, '');
-});
-
-
-test('coverage uses the installed Playwright runner without a command-line override', t => {
-    const result = workflow(t, [], '', false, 'playwright');
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.calls, /run-playwright.cjs --warmup/);
-    assert.match(result.calls, /runner node bin\/run-playwright.cjs\n/);
-    assert.doesNotMatch(result.calls, /run-browser.cjs/);
-});
-
-test('coverage refuses an uninstalled runner before touching services or collection', t => {
-    for (const [installed, requested] of [['cypress', 'playwright'], ['playwright', 'cypress']]) {
-        const result = workflow(t, ['--runner=' + requested], '', false, installed);
-        assert.equal(result.status, 1);
-        assert.match(result.stderr, /not installed/);
-        assert.equal(result.calls, '');
-    }
+test('missing coverage installation directs existing shops to reinstall before any execution', t => {
+    const r = workflow(t, {profile: false});
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /install the coverage runtime/);
+    assert.equal(r.calls, '');
 });

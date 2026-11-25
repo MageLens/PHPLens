@@ -6,11 +6,13 @@ License: see LICENSE in the repository root.
 
 # Work on the Shopware installer
 
-Use the Shopware commands in [README.md](README.md) for this fork. The installer owns the root Compose project and runs Shopware CLI in the application container. Keep source in `src/`, operational files in `.runtime/`, and database writes on this checkout's local `db` service. Use `node --test tests/shopware/installer.test.cjs` for focused orchestration checks. The Shopware installer workflow verifies the Storefront, authenticated Administration, source adoption and restored databases with pinned Chrome.
+Use the Shopware commands in [README.md](README.md) for this fork. The installer owns the root Compose project and runs Shopware CLI in the application container. Keep source in `src/`, operational files in `.runtime/`, and database writes on this checkout's local `db` service. Use `npm run test:shopware` for focused installer, test-discovery, instrumentation and reporting checks. Shopware browser coverage collects PHP and standalone JavaScript/TypeScript through Cypress or Playwright; Twig/template collection is disabled. Application test paths are configured in `coverage.config.json`. The Shopware installer workflow verifies the Storefront, authenticated Administration, source adoption and restored databases with pinned Chrome.
 
 ## Inherited MageLens tooling
 
-The reference below describes the Magento tooling inherited from MageLens and its release qualification. Its platform flags, runner commands and coverage paths apply to Magento development. The Shopware fork currently delivers installation and application commands.
+<!-- TO DO [SW-AUDIT-015]: Retain the Magento command reference for the later port; reconcile platform flags and coverage instructions after replacement flows are qualified. -->
+
+The reference below describes the Magento tooling inherited from MageLens and its release qualification. Its platform flags, runner commands and coverage paths apply to Magento development. The Shopware fork provides installation, application commands and a separate PHP/JavaScript coverage path; its usage and qualification status are described in README.md.
 
 MageLens provides a local Magento Open Source or Mage-OS environment with Cypress or Playwright and PHP, JavaScript and template coverage. Use [README.md](README.md) for installation and daily commands, [docs/coverage.md](docs/coverage.md) for scenarios and coverage configuration, and [tests/README.md](tests/README.md) for isolated validation.
 
@@ -53,7 +55,7 @@ Installation updates application setup, dependencies, configuration and services
 
 ## Work on an application
 
-Application modules belong in `src/app/code/`; local themes belong in `src/app/design/frontend/` or `src/app/design/adminhtml/`. Read any scoped `AGENTS.md` before changing a module. The bundled example is documented in [the Blog README](src/app/code/Application/Blog/README.md).
+Application modules belong in `src/app/code/`; local themes belong in `src/app/design/frontend/` or `src/app/design/adminhtml/`. Read any scoped `AGENTS.md` before changing a module.
 
 To use a complete existing project, copy its `composer.json`, `composer.lock`, `bin/magento`, `app/bootstrap.php` and other application files into `src/` before installation. Use `--mageos` for a Mage-OS project. The copied project's Composer lock controls its dependencies. Supply credentials for its private packages separately, without printing or committing them.
 

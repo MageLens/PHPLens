@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-013]: Retain image build/regression flows and publication restrictions. Replace
+# Mark Shust/pin inputs and establish fork ownership before building Shopware coverage images.
 
 # Shared native image build and regression checks for PR CI and the qualified publisher.
 source "$(dirname "$0")/../../bin/common"

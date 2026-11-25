@@ -1,6 +1,9 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
+
+// TO DO [SW-AUDIT-006]: Retain discovery/runtime exports used by both runners and tests. Replace
+// Magento module/theme paths, XML registration and FPM/nginx mounts with platform discovery.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -61,8 +64,13 @@ function discover(source = 'src') {
 }
 
 function specPatterns(runner = 'cypress') {
-    if (runner === 'playwright') return ['playwright/e2e/**/*.spec.{js,ts}', ...discover().modules.map(module => `src/${module.root}/Test/Playwright/**/*.spec.{js,ts}`)];
-    return ['cypress/e2e/**/*.cy.js', ...discover().modules.map(module => `src/${module.root}/Test/Cypress/**/*.cy.js`)];
+    const suites = require('./test-suites.cjs');
+    if (process.env.PHPLENS_PLATFORM !== 'shopware' && !suites.configuration().tests
+        && fs.existsSync('src/app/code') && !fs.existsSync('src/bin/console')) {
+        if (runner === 'playwright') return ['playwright/e2e/**/*.spec.{js,ts}', ...discover().modules.map(module => `src/${module.root}/Test/Playwright/**/*.spec.{js,ts}`)];
+        return ['cypress/e2e/**/*.cy.js', ...discover().modules.map(module => `src/${module.root}/Test/Cypress/**/*.cy.js`)];
+    }
+    return suites.patterns(runner);
 }
 
 function isCoverageExcluded(file) {

@@ -3,24 +3,27 @@
   "version": "1.9.4",
   "private": true,
   "license": "Elastic-2.0",
-  "description": "Quickly bootstrap Magento with PHP, JavaScript, and HTML template code coverage",
+  "description": "Bootstrap local Shopware development; retain inherited browser and coverage tooling for migration",
   "scripts": {
     "check:copyright": "node tests/check-copyright.cjs",
     "coverage": "./bin/run-coverage",
     "cy:coverage": "./bin/run-coverage",
     "test:integration": "node --test --test-concurrency=2 tests/*.test.cjs",
     "test:e2e": "bash tests/e2e-isolated.sh",
-    "test:e2e:matrix": "bash tests/e2e-matrix.sh"
+    "test:e2e:matrix": "bash tests/e2e-matrix.sh",
+    "test:shopware": "node --test --test-concurrency=2 tests/run-coverage.test.cjs tests/shopware/*.test.cjs"
   },
   "devDependencies": {
     "@cypress/code-coverage": "4.1.3",
+    "@playwright/test": "1.65.0",
     "@vitaliiboiko/magento-template-coverage": "2.0.0",
     "cypress": "16.3.0",
     "istanbul-lib-coverage": "3.2.2",
     "istanbul-lib-instrument": "6.0.3",
     "istanbul-lib-report": "3.0.1",
     "istanbul-reports": "3.2.0",
-    "nyc": "18.0.0"
+    "nyc": "18.0.0",
+    "typescript": "5.9.3"
   },
   "overrides": {
     "glob@>=9.0.0 <=14.0.1": "14.0.4",
@@ -28,15 +31,18 @@
   },
   "nyc": {
     "include": [
-      "src/app/code/**/*.js",
-      "src/app/design/frontend/**/*.js",
-      "src/app/design/adminhtml/**/*.js"
+      "src/**/*.{js,mjs,cjs,ts,mts,cts}"
     ],
     "exclude": [
-      "**/*.cy.js",
+      "**/*.cy.*",
+      "**/*.spec.*",
+      "**/tests/**",
+      "**/test/**",
       "**/Test/**",
       "**/Setup/**",
-      "**/cypress/**"
+      "**/node_modules/**",
+      "**/cypress/**",
+      "**/playwright/**"
     ],
     "report-dir": "coverage/js",
     "reporter": [

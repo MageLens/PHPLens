@@ -6,7 +6,9 @@ License: see LICENSE in the repository root.
 
 # Test your installation
 
-For the Shopware fork, run `node --test tests/shopware/installer.test.cjs` for shell integration checks. The **Shopware installer** Actions workflow installs an isolated fresh shop, logs in through Chrome for Testing, exercises copied source and a restored local database, and checks persistence after restarting. Dispatch this workflow directly or apply the `run-ci` label to its pull request.
+For the Shopware fork, run `npm run test:shopware` for installer, test-discovery, instrumentation, reporting and coverage orchestration checks. The **Shopware installer** Actions workflow installs an isolated fresh shop, logs in through Chrome for Testing, exercises copied source and a restored local database, and checks persistence after restarting. Dispatch this workflow directly or apply the `run-ci` label to its pull request.
+
+The **Shopware coverage** Actions workflow qualifies both Cypress and Playwright against an exact Shopware 6.7 reference version. It verifies fresh, adopted and restored projects, authenticated Administration, Storefront lazy loading, original-source PHP/JavaScript reports and complete covered/uncovered equivalence between runners. Dispatch it or apply `run-ci` to the pull request. Template collection is disabled. Local checks and image builds do not replace this qualification.
 
 ## MageLens qualification
 

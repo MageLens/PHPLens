@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-002]: Retain upstream command generation for inherited flows. Replace it with
+# platform-owned tools before use here: it overwrites Shopware start/setup-domain
+# and can overwrite composer/console/shopware-cli wrappers.
 
 source "$(dirname "$0")/common"
 upstream=.runtime/docker-magento/compose

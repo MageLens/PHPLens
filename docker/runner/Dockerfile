@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxss1 libxtst6 xvfb xauth zip unzip \
     && rm -rf /var/lib/apt/lists/*
 ENV CI=true CYPRESS_INSTALL_BINARY=0 CHILD_CONCURRENCY=2 \
-    NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/build/tmp
+    NODE_OPTIONS="--max-old-space-size=4096" TMPDIR=/build/tmp
 COPY package.json /input/package.json
 COPY docker/runner/cypress-source/ /input/
 RUN taskset -c "$(python3 -c 'import os; print(",".join(map(str, sorted(os.sched_getaffinity(0))[:2])))')" bash /input/build.sh
@@ -24,14 +24,12 @@ RUN bash /opt/magelens/install-desktop.sh curl unzip ca-certificates
 ENV DISPLAY=:99 MAGELENS_RUNNER=playwright
 WORKDIR /workspace
 COPY package.json package-lock.json ./
-COPY .runtime/template-package/ .runtime/
 RUN npm ci --ignore-scripts --no-audit --no-fund \
     && npx --no-install playwright install-deps chromium \
     && bash /opt/magelens/install-chrome.sh \
     && rm -rf /var/lib/apt/lists/*
 RUN mkdir /opt/magelens-dependencies \
     && cp package.json package-lock.json /opt/magelens-dependencies/ \
-    && cp -a .runtime /opt/magelens-dependencies/ \
     && tar czf /opt/magelens-dependencies/node_modules.tar.gz node_modules
 ENV PATH=/workspace/node_modules/.bin:$PATH
 HEALTHCHECK --interval=3s --timeout=3s --start-period=10s --retries=20 \
@@ -51,11 +49,9 @@ ENV CYPRESS_CACHE_FOLDER=/opt/cypress DISPLAY=:99 MAGELENS_RUNNER=cypress
 COPY --from=cypress-source /output/ /opt/cypress/
 WORKDIR /workspace
 COPY package.json package-lock.json ./
-COPY .runtime/template-package/ .runtime/
 RUN CYPRESS_INSTALL_BINARY=0 npm ci --no-audit --no-fund && chmod -R a+rwX /opt/cypress
 RUN mkdir /opt/magelens-dependencies \
     && cp package.json package-lock.json /opt/magelens-dependencies/ \
-    && cp -a .runtime /opt/magelens-dependencies/ \
     && tar czf /opt/magelens-dependencies/node_modules.tar.gz node_modules
 ENV PATH=/workspace/node_modules/.bin:$PATH
 HEALTHCHECK --interval=3s --timeout=3s --start-period=10s --retries=20 \

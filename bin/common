@@ -11,6 +11,9 @@ load_dependencies "$ROOT/dependencies.yaml"
 export LOCAL_UID=$(id -u) LOCAL_GID=$(id -g)
 source "$ROOT/bin/compose-project"
 export SHOPWARE_CHECKOUT=$(pwd -P)
+MAGELENS_RUNNER=${MAGELENS_RUNNER:-$(cat .runtime/runner 2>/dev/null || printf cypress)}
+[[ "$MAGELENS_RUNNER" == cypress || "$MAGELENS_RUNNER" == playwright ]] || { printf 'Invalid saved runner selection.\n' >&2; exit 1; }
+export MAGELENS_RUNNER
 
 # Match the installer's literal dotenv format without sourcing application secrets.
 local_setting() {
@@ -36,7 +39,10 @@ compose_settings() {
     [[ "$APPLICATION_PORT" != "$APPLICATION_HTTPS_PORT" ]] || fail 'HTTP and HTTPS ports must differ.'
     SHOPWARE_ORIGIN="https://$APPLICATION_DOMAIN"
     [[ "$APPLICATION_HTTPS_PORT" == 443 ]] || SHOPWARE_ORIGIN+=":$APPLICATION_HTTPS_PORT"
-    export SHOPWARE_ORIGIN APPLICATION_DOMAIN APPLICATION_PORT APPLICATION_HTTPS_PORT
+    RUNNER_VIEW_PORT=$(local_setting RUNNER_VIEW_PORT 6080)
+    [[ "$RUNNER_VIEW_PORT" =~ ^[1-9][0-9]{0,4}$ ]] && (( RUNNER_VIEW_PORT <= 65535 )) || fail 'Invalid RUNNER_VIEW_PORT.'
+    [[ "$RUNNER_VIEW_PORT" != "$APPLICATION_PORT" && "$RUNNER_VIEW_PORT" != "$APPLICATION_HTTPS_PORT" ]] || fail 'Viewer and application ports must differ.'
+    export RUNNER_VIEW_PORT SHOPWARE_ORIGIN APPLICATION_DOMAIN APPLICATION_PORT APPLICATION_HTTPS_PORT
 }
 
 app_exec() {
@@ -49,7 +55,17 @@ app_exec() {
 dc() {
     compose_settings
     resolve_compose_command_project "$@" || return 1
-    docker compose --project-directory "$ROOT" -f "$ROOT/compose.yaml" "$@"
+    docker compose --project-directory "$ROOT" -f "$ROOT/compose.yaml" --profile coverage "$@"
+}
+
+coverage_dc() {
+    compose_settings
+    resolve_compose_command_project "$@" || return 1
+    docker compose --project-directory "$ROOT" -f "$ROOT/compose.yaml" -f "$ROOT/compose.coverage.yaml" --profile coverage "$@"
+}
+
+coverage_fingerprint() {
+    cksum dependencies.yaml package.json package-lock.json compose.coverage.yaml docker/shopware/coverage.Dockerfile docker/shopware/coverage.ini docker/php/composer.json docker/php/composer.lock docker/runner/Dockerfile docker/runner/*.sh docker/runner/*.cjs docker/runner/cypress-source/* | cksum | awk '{print $1 "-" $2}'
 }
 
 say() { printf '\n==> %s\n' "$*"; }

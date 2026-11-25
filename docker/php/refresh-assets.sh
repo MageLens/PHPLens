@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-011]: Retain legacy refresh-assets behavior and flags. Replace pub/static cleanup
+# and bin/magento cache commands with platform-specific cache/build operations.
 
 set -euo pipefail
 cd /var/www/html

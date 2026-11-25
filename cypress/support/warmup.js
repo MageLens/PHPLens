@@ -1,9 +1,11 @@
-// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// Copyright (c)  MageLens
 // SPDX-License-Identifier: Elastic-2.0
 // License: see LICENSE in the repository root.
 
+// Template collection is retained for inherited Magento runs and disabled for Shopware.
+
 // Keep instrumented templates functional without recording coverage or a PHP token.
-const {observeExecution} = require('@vitaliiboiko/magento-template-coverage/browser');
+const observeExecution = Cypress.expose('platform') === 'shopware' ? () => {} : require('@vitaliiboiko/magento-template-coverage/browser').observeExecution;
 const {disablePageTransitions} = require('../../bin/browser-navigation.cjs');
 let win;
 let lastActivity = Date.now();
@@ -69,7 +71,9 @@ Cypress.Commands.add('warmupReady', () => {
         expect(state.pendingModules, 'RequireJS components and templates resolved').to.deep.equal([]);
         expect(state.pendingRequests, 'browser requests completed').to.deep.equal([]);
         expect(state.quietForMs, 'no new requests for one second').to.be.at.least(1000);
-    });
+    }).then(current => cy.task('warmup:page', {
+        page: current.location.href, javascriptFiles: Object.keys(current.__coverage__ || {})
+    }, {log: false}));
 });
 
 afterEach(function () {

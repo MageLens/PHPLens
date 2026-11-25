@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-003]: Retain runner dependency synchronization for the image builder. Supply a
+# platform-neutral pin set and retry helper before this legacy flow can run here.
 
 # Sourced by installation and the isolated image builder.
 say 'Synchronizing browser coverage versions and dependency locks'

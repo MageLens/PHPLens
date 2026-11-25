@@ -3,5 +3,9 @@
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
 
-set -eu
-exec "$(dirname "$0")/application-compose" up -d --wait app
+source "$(dirname "$0")/common"
+if [[ -f .runtime/coverage-profile ]]; then
+    dc --profile coverage up -d --wait app runner
+else
+    dc up -d --wait app
+fi

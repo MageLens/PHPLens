@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-003]: Retain the legacy PHP image builder for coverage/release consumers. Replace
+# the Mark Shust recipe and missing PHP pins with a qualified platform image.
 
 source "$(dirname "$0")/common"
 series=${PHP_VERSION%.*}

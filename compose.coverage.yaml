@@ -1,0 +1,24 @@
+# Copyright (c)  MageLens
+# SPDX-License-Identifier: Elastic-2.0
+# License: see LICENSE in the repository root.
+
+services:
+  app:
+    image: ${COMPOSE_PROJECT_NAME}-coverage-app
+    build:
+      context: .
+      dockerfile: docker/shopware/coverage.Dockerfile
+      args:
+        SHOPWARE_IMAGE: ${SHOPWARE_IMAGE}
+        PCOV_VERSION: ${PCOV_VERSION}
+        PCOV_SOURCE_SHA256: ${PCOV_SOURCE_SHA256}
+    environment:
+      COVERAGE_PROJECT_FILE: /project.json
+    volumes:
+      - ./.runtime/coverage-app:/var/www/html
+      - ./src:/source:ro
+      - ./:/application:ro
+      - ./.runtime/project.json:/project.json:ro
+      - ./.runtime/php-scope.ini:/usr/local/etc/php/conf.d/zzz-coverage-scope.ini:ro
+      - ./coverage:/coverage
+      - ./.runtime/pcov:/pcov-state

@@ -1,9 +1,12 @@
 <?php
 /*
- * SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+ * Copyright (c)  MageLens
  * SPDX-License-Identifier: Elastic-2.0
  * License: see LICENSE in the repository root.
  */
+
+// TO DO [SW-AUDIT-005]: Retain the Hyva package repository for legacy theme installation.
+// Keep it platform-specific; replace this flow with Shopware theme/build integration.
 
 declare(strict_types=1);
 $file = '/var/www/html/composer.json';

@@ -4,12 +4,13 @@
 # License: see LICENSE in the repository root.
 
 source "$(dirname "$0")/common"
-usage='Usage: ./install.sh [--version 6.7.x.y] [--container-only] [--project-name NAME] [--domain-id ID] [domain]'
+usage='Usage: ./install.sh [--version 6.7.x.y] [--runner=cypress|playwright] [--container-only] [--project-name NAME] [--domain-id ID] [domain]'
 requested_domain='' requested_project='' requested_version='' domain_id='' container_only=0
 while (( $# )); do
     case "$1" in
         --help|-h) echo "$usage"; exit 0 ;;
         --container-only) container_only=1 ;;
+        --runner=cypress|--runner=playwright) MAGELENS_RUNNER=${1#*=}; export MAGELENS_RUNNER ;;
         --project-name|--domain-id|--version)
             [[ $# -ge 2 && -n "$2" && "$2" != -* ]] || fail "$usage"
             case "$1" in
@@ -70,13 +71,14 @@ source "$ROOT/bin/application-domain"
 configure_application_domain .env "$requested_domain"
 # Persist environment overrides so a later bin/start uses the same public origin.
 temp=$(mktemp .env.XXXXXX)
-awk '!/^[[:space:]]*APPLICATION_(HTTPS_)?PORT[[:space:]]*=/' .env > "$temp"
-printf 'APPLICATION_PORT=%s\nAPPLICATION_HTTPS_PORT=%s\n' "$APPLICATION_PORT" "$APPLICATION_HTTPS_PORT" >> "$temp"
+awk '!/^[[:space:]]*(APPLICATION_(HTTPS_)?PORT|RUNNER_VIEW_PORT)[[:space:]]*=/' .env > "$temp"
+printf 'APPLICATION_PORT=%s\nAPPLICATION_HTTPS_PORT=%s\nRUNNER_VIEW_PORT=%s\n' "$APPLICATION_PORT" "$APPLICATION_HTTPS_PORT" "$RUNNER_VIEW_PORT" >> "$temp"
 mv "$temp" .env
 save_compose_project
 compose_settings
 rm -f .runtime/installed
 mkdir -p .runtime/composer .runtime/caddy
+printf '%s\n' "$MAGELENS_RUNNER" > .runtime/runner
 auth=()
 [[ -z ${COMPOSER_AUTH:-} ]] || auth=(-e COMPOSER_AUTH)
 cli_version=$(docker run --rm --network none "$SHOPWARE_IMAGE" shopware-cli --version)
@@ -127,6 +129,7 @@ dc exec -T app "${setup_php[@]}" /tools/ready.php
 if (( ! container_only )); then
     "$ROOT/bin/setup-domain" "$APPLICATION_DOMAIN" "$ROOT/.runtime/caddy/caddy/pki/authorities/local/root.crt"
 fi
+"$ROOT/bin/install-coverage"
 printf '%s\n' "$version" > .runtime/installed.tmp
 mv .runtime/installed.tmp .runtime/installed
 printf 'Storefront  %s/\nAdministration  %s/admin\n' "$SHOPWARE_ORIGIN" "$SHOPWARE_ORIGIN"

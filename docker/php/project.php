@@ -1,15 +1,18 @@
 <?php
 /*
- * SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+ * Copyright (c)  MageLens
  * SPDX-License-Identifier: Elastic-2.0
  * License: see LICENSE in the repository root.
  */
+
+// TO DO [SW-AUDIT-006]: Retain the project inventory reader and legacy module-listing CLI.
+// Replace Magento bootstrap/registrar use through platform discovery before porting the CLI.
 
 declare(strict_types=1);
 
 function project(): array
 {
-    return json_decode(file_get_contents('/application/project.json'), true, flags: JSON_THROW_ON_ERROR);
+    return json_decode(file_get_contents(getenv('COVERAGE_PROJECT_FILE') ?: '/application/project.json'), true, flags: JSON_THROW_ON_ERROR);
 }
 
 if (realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) {

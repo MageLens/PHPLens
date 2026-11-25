@@ -1,9 +1,12 @@
 <?php
 /*
- * SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+ * Copyright (c)  MageLens
  * SPDX-License-Identifier: Elastic-2.0
  * License: see LICENSE in the repository root.
  */
+
+// TO DO [SW-AUDIT-005]: Retain legacy theme registration and selection for existing checks.
+// Replace Magento theme metadata and configuration with platform theme discovery.
 
 declare(strict_types=1);
 

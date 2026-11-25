@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+# Copyright (c)  MageLens
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
+
+# TO DO [SW-AUDIT-008]: Retain active Magento patches and retired-patch recovery for interrupted
+# legacy runs. Remove only after the platform flow no longer needs either recovery path.
 
 set -euo pipefail
 # Patch paths are relative to the Composer-installed Magento project.

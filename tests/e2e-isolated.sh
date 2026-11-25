@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Elastic-2.0
 # License: see LICENSE in the repository root.
 
+# TO DO [SW-AUDIT-014]: Retain the inherited acceptance/recovery journey. Replace Magento flags,
+# service assumptions and missing Blog fixture source with a platform-specific harness.
+
 set -euo pipefail
 export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=true
 source "$(dirname "$0")/../bin/common"

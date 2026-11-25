@@ -4,135 +4,143 @@
 # License: see LICENSE in the repository root.
 
 source "$(dirname "$0")/common"
-start_services=0
-refresh_cache=0
-refresh_assets=0
-restart_php=0
-runner=${MAGELENS_RUNNER:-cypress}
+start_services=0 refresh_cache=0 refresh_assets=0 restart_php=0
+runner=$MAGELENS_RUNNER
 for option in "$@"; do
     case "$option" in
         --start) start_services=1 ;;
         --refresh-cache) refresh_cache=1 ;;
         --refresh-assets) refresh_assets=1 ;;
         --restart-php) restart_php=1 ;;
-        --runner=cypress) runner=cypress ;;
-        --runner=playwright) runner=playwright ;;
+        --runner=cypress|--runner=playwright) runner=${option#*=} ;;
         --help|-h)
             cat <<'HELP'
 Usage: ./bin/run-coverage [options]
+Run the configured Shopware browser suite and collect PHP and JavaScript coverage.
+Templates and inline scripts are not collected.
 
-Run the selected browser suite and create fresh coverage reports using the running environment.
-
-  --start           Start stopped application services before the run
-  --refresh-cache   Clean Magento caches (for example after layout/config changes)
-  --refresh-assets  Clear published static assets and Magento caches
-  --restart-php     Restart PHP-FPM before the run
+  --start           Start stopped services before the run
+  --refresh-cache   Clear Shopware caches in the disposable application
+  --refresh-assets  Force dependency installation during the coverage asset build
+  --restart-php     Restart the disposable application before collection
   --runner=cypress|playwright Assert the installed runner (defaults to saved selection)
   --help            Show this help
 
-Source edits and theme selections are picked up automatically. Options can be combined.
+Configure tests.cypress and tests.playwright in coverage.config.json.
+Coverage always builds disposable assets and restores the normal app afterward.
 HELP
             exit 0 ;;
-        *) fail "Unknown option: $option. Use --help for available refresh options." ;;
+        *) fail "Unknown option: $option. Use --help." ;;
     esac
 done
-[[ "$runner" == "${MAGELENS_RUNNER:-cypress}" ]] || fail 'This runner is not installed. Rerun ./install.sh with the required runner selection.'
+[[ "$runner" == "$MAGELENS_RUNNER" ]] || fail 'This runner is not installed. Rerun ./install.sh --runner=NAME.'
 preflight
-[[ -f .runtime/installed ]] || fail 'Run ./install.sh first.'
-installed_runtime=$(cat .runtime/installed)
-[[ "$installed_runtime" == 5 || ( "$MAGELENS_RUNNER" == playwright && "$installed_runtime" == 4 ) ]] \
-    || fail 'Rerun ./install.sh with your saved platform, theme and runner flags to install the current browser runner.'
+[[ -f .runtime/installed && -f .runtime/coverage-profile ]] || fail 'Run ./install.sh to install the coverage runtime and browser runner.'
+read -r schema selected fingerprint < .runtime/coverage-profile
+[[ "$schema" == 1 && "$selected" == "$runner" && "$fingerprint" == "$(coverage_fingerprint)" ]] || fail 'Coverage tooling changed. Rerun ./install.sh with your saved runner selection.'
 lock_workflow
-if (( start_services )); then
-    if ! dc up -d --wait --wait-timeout 180 db redis opensearch phpfpm app runner; then
-        dc logs --tail 80 db redis opensearch phpfpm app runner >&2 || true
-        fail 'A required service could not start. See its logs above.'
-    fi
-fi
-if (( restart_php )); then
-    dc restart -t 60 phpfpm
-    dc up -d --wait --wait-timeout 60 phpfpm
-fi
-dc exec -T runner true || fail 'Cannot access the browser runner. Check the diagnostics above; if services are stopped, use ./bin/run-coverage --start.'
-if [[ "$runner" == playwright ]]; then
-    dc exec -T runner node -e "require.resolve('@vitaliiboiko/magento-template-coverage/playwright')" >/dev/null \
-        || fail 'Playwright coverage requires template coverage 1.2 or newer. Update dependencies.yaml and rerun ./install.sh --playwright.'
-fi
-dc exec -T phpfpm php /application/docker/php/collection.php stop || fail 'Cannot prepare PHP collection. If services are stopped, use --start.'
+report_ready=0 override_active=0
+coverage_php() {
+    coverage_dc exec -T app php -d error_reporting=-1 -d display_errors=stderr -d log_errors=0 "$@"
+}
 cleanup_hooks() {
     if [[ -f .runtime/hooks-active ]]; then
-        dc exec -T phpfpm php /application/docker/php/project-hooks.php cleanup || return 1
+        coverage_php /tools/hooks.php cleanup || return 1
         rm -f .runtime/hooks-active
     fi
 }
-report_ready=0
-report_url=''
-report_link=src/pub/media/coverage
-report_target=../../../coverage
-publish_report() {
-    report_url=$(dc exec -T phpfpm php /application/docker/php/report-url.php) || return 1
-    [[ "$report_url" == http://* || "$report_url" == https://* ]] || return 1
-    dc exec -T app test -r /var/www/coverage/index.html || return 1
-    ln -s "$report_target" "$report_link"
+restore_theme_state() {
+    if [[ -f .runtime/pcov/theme-state.json ]]; then
+        coverage_php /tools/theme-state.php restore || return 1
+    fi
 }
 cleanup() {
     local result=$?
-    trap - EXIT
-    if [[ -f coverage/.active-run ]]; then
-        dc exec -T phpfpm php /application/docker/php/collection.php stop || result=1
+    trap - EXIT INT TERM
+    if (( override_active )); then
+        if [[ -f coverage/.active-run ]]; then
+            coverage_php /application/docker/php/collection.php stop || result=1
+        fi
+        cleanup_hooks || result=1
+        local theme_restored=1
+        restore_theme_state || { result=1; theme_restored=0; }
+        # Retain this marker if restoration fails so the next run can recover.
+        if dc up -d --wait --wait-timeout 180 app && dc exec -T app php -d error_reporting=-1 -d display_errors=stderr -d log_errors=0 /tools/ready.php; then
+            (( ! theme_restored )) || rm -f .runtime/coverage-override-active
+        else
+            printf 'Could not restore the normal application. Rerun ./bin/run-coverage --start to recover.\n' >&2
+            result=1
+        fi
     fi
-    cleanup_hooks || result=1
     if (( result == 0 && report_ready )); then
-        publish_report || { printf 'Cannot publish the coverage report through pub/media. Local reports remain in coverage/.\n' >&2; result=1; }
+        local run_id
+        run_id=$(dc exec -T runner node -p "require('./coverage/run.json').id") || result=1
+        [[ "$run_id" =~ ^[a-f0-9]{32}$ ]] || result=1
+        if (( result == 0 )); then printf '%s\n' "$run_id" > coverage/.published.tmp || result=1; fi
+        if (( result == 0 )); then mv coverage/.published.tmp coverage/.published || result=1; fi
     fi
     rmdir "$ROOT/.runtime/workflow.lock" || result=1
     if (( result == 0 && report_ready )); then
-        printf '\nOpen the combined coverage report: %s\n' "$report_url"
-    elif [[ -L "$report_link" && "$(readlink "$report_link")" == "$report_target" ]]; then
-        rm -f "$report_link"
+        printf '\nOpen the combined coverage report: %s/coverage/index.html\n' "$SHOPWARE_ORIGIN"
+    else
+        rm -f coverage/.published coverage/.published.tmp
     fi
     exit "$result"
 }
 trap cleanup EXIT
-cleanup_hooks
-# Older running containers need the new report mount and static location.
-dc exec -T app sh -c 'test -d /var/www/coverage && grep -q "location ^~ /media/coverage/" /etc/nginx/conf.d/default.conf' \
-    || fail 'Rerun ./install.sh with your saved platform, theme and runner flags to enable report publication.'
-if [[ -L "$report_link" && "$(readlink "$report_link")" == "$report_target" ]]; then
-    rm "$report_link"
-elif [[ -e "$report_link" || -L "$report_link" ]]; then
-    fail "Cannot publish coverage: $report_link already exists and is not the MageLens report symlink. Move it aside first."
+trap 'exit 130' INT
+trap 'exit 143' TERM
+rm -f coverage/.published
+if (( start_services )); then dc --profile coverage up -d --wait --wait-timeout 180 app runner; fi
+dc exec -T runner true || fail 'Browser runner is stopped. Use --start.'
+dc exec -T app true || fail 'Application is stopped. Use --start.'
+# Recover fixture cleanup in the previous disposable application before replacing it.
+if [[ -f .runtime/coverage-override-active || -f .runtime/hooks-active ]]; then
+    override_active=1
+    coverage_dc up -d --wait --wait-timeout 180 app
+    coverage_php /application/docker/php/collection.php stop
+    cleanup_hooks
+    restore_theme_state
+    dc up -d --wait --wait-timeout 180 app
+    rm -f .runtime/coverage-override-active
+    override_active=0
 fi
-mkdir -p src/pub/media
-if (( refresh_assets )); then
-    dc exec -T phpfpm bash /application/docker/php/refresh-assets.sh
-elif (( refresh_cache )); then
-    dc exec -T phpfpm php bin/magento cache:clean
-fi
-say 'Preparing fresh coverage'
-dc exec -T phpfpm php /application/docker/php/theme-scope.php > .runtime/active-themes.json
-dc exec -T -e MAGELENS_RUNNER="$runner" runner node bin/prepare.cjs --theme-roots .runtime/active-themes.json
+say 'Discovering active Shopware sources and preparing browser suites'
+dc exec -T app php -d error_reporting=-1 -d display_errors=stderr -d log_errors=0 /tools/project.php > .runtime/shopware-project.json
+# Native project metadata needs read-only access to the runner configuration.
+viewer_env=()
+[[ -z ${APPLICATION_DOMAIN:-} ]] || viewer_env+=(-e "APPLICATION_DOMAIN=$APPLICATION_DOMAIN")
+[[ -z ${RUNNER_VIEW_PORT:-} ]] || viewer_env+=(-e "RUNNER_VIEW_PORT=$RUNNER_VIEW_PORT")
+dc exec -T ${viewer_env[@]+"${viewer_env[@]}"} runner node bin/coverage/prepare.cjs
+# Publish the override marker before recreation, including failure/interruption paths.
+touch .runtime/coverage-override-active
+override_active=1
+coverage_dc up -d --wait --wait-timeout 180 app
+coverage_php /application/docker/php/collection.php stop
+coverage_php /tools/theme-state.php save
 touch .runtime/hooks-active
-dc exec -T phpfpm php /application/docker/php/project-hooks.php before
-dc exec -T phpfpm php /application/docker/php/project-hooks.php prepare > coverage/project-fixtures.json
-say 'Warming the storefront and fixture pages in a separate browser (up to 10 minutes)'
+coverage_php /tools/hooks.php before
+coverage_php /tools/hooks.php prepare > coverage/project-fixtures.json
+if (( refresh_cache )); then coverage_php bin/console cache:clear --no-interaction; fi
+say 'Building instrumented Storefront and Administration assets in the disposable application'
+build_flags=()
+(( ! refresh_assets )) || build_flags+=(--force-install-dependencies)
+coverage_dc exec -T app shopware-cli project storefront-build --no-interaction ${build_flags[@]+"${build_flags[@]}"}
+coverage_dc exec -T app shopware-cli project admin-build --no-interaction ${build_flags[@]+"${build_flags[@]}"}
+coverage_php bin/console assets:install --no-interaction
+coverage_php bin/console theme:compile --sync --no-interaction
+coverage_php bin/console cache:clear --no-interaction
+if (( restart_php )); then coverage_dc restart -t 60 app; coverage_dc up -d --wait --wait-timeout 180 app; fi
+coverage_php /tools/ready.php
 browser_script=bin/run-browser.cjs
-[[ "$runner" == playwright ]] && browser_script=bin/run-playwright.cjs
-if dc exec -T runner timeout --signal=TERM --kill-after=10s 600s node "$browser_script" --warmup; then
-    say 'Browser warm-up completed; starting fresh coverage collection'
-else
-    result=$?
-    if [[ "$result" == 124 || "$result" == 137 ]]; then
-        printf 'Browser warm-up exceeded its 10-minute limit.\n' >&2
-    fi
-    printf 'Warm-up failed. Inspect coverage/warmup-results.json, coverage/warmup-diagnostics.json and coverage/warmup-screenshots/.\n' >&2
-    exit "$result"
-fi
-dc exec -T phpfpm php /application/docker/php/manifest.php
-dc exec -T phpfpm php /application/docker/php/collection.php start
-say "Running the full $runner suite (preparation: ${SECONDS}s)"
+[[ "$runner" != playwright ]] || browser_script=bin/run-playwright.cjs
+say 'Warming application pages without collecting execution'
+dc exec -T runner timeout --signal=TERM --kill-after=10s 600s node "$browser_script" --warmup
+coverage_php /application/docker/php/manifest.php
+coverage_php /application/docker/php/collection.php start
+say "Running all configured $runner scenarios"
 dc exec -T runner node "$browser_script"
-say 'Generating coverage reports'
-dc exec -T phpfpm php /application/docker/php/report.php
+say 'Generating and verifying PHP and JavaScript reports'
+coverage_php /application/docker/php/report.php
 dc exec -T runner sh -c 'node bin/report-browser.cjs && node bin/finalize.cjs'
 report_ready=1
